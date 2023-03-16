@@ -1,6 +1,6 @@
 import os
 from researchers.research_phase_one import _run_training
-from researchers.research_phase_two import _perfect_model, _raw_model_saver, _model_saver
+from researchers.research_phase_two import _perfect_model, _raw_model_saver
 from messenger_commands.messenger_commands import _send_telegram_msg, _dataframe_to_png, _send_discord_message
 from data_service.data_preparation import DataPreparation
 from data_service.data_transformation import _data_normalisation, _split_data, _distribution_type, _data_denormalisation
@@ -89,7 +89,7 @@ class InitiateResearch:
         _send_discord_message('TESTING - 1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
         _send_discord_message('TESTING - 2nd phase for ' + self.asset + ' ' + self.type + ' has been started')
 
-        self.history, self.predicted_test_x = _perfect_model(self.testing, self.asset, self.data_table_normalized,
+        self.history, self.predicted_test_x, self.mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
                                                              self.research_results,
                                                              self.trainX, self.trainY, self.testX, self.testY,
                                                              epo=self.epo)
@@ -134,7 +134,7 @@ class InitiateResearch:
 
         self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future, self.interval,
                                                dta, self.source,
-                                               self.unique_name)
+                                               self.unique_name,self.mod)
 
         _dataframe_to_png(sum_frame1, "table_training_details")
 

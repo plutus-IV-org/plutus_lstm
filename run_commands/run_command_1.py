@@ -11,6 +11,7 @@ else:
     df = pd.read_excel(r'inputs/init.xlsx')
     # df = pd.read_json(r'service_space/asset_config.json')
 
+self_container = {}
 for x in range(len(df.index)):
     """
         -Close
@@ -30,8 +31,10 @@ for x in range(len(df.index)):
     epo = int(df.loc[x,'EPOCHS'])
     interval = df.loc[x, 'INTERVAL']
 
-    h= InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
-    q1 = h._initialize_training()
+    i= InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
+    i._initialize_training()
+    self_container[i.unique_name] = i.__dict__
 
-
-    q=1
+# input container into app maker
+#xreate force saver of the model
+q=1
