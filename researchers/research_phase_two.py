@@ -77,8 +77,8 @@ def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX,
     return history, prediction,mod
 
 def _raw_model_saver(asset,df_type,epo,past,future,interval,dta,source,unique_name,mod):
-    file_name = asset + '_' + df_type + '_' + str(epo) + '_' + str(past) + '_' + str(
-        future) + '_' + interval + '_A_' + str(round(dta, 2)) + '_S_' + source[
+    file_name = asset + '_' + df_type + '_' + str(epo) + '_' + str(past[0]) + '_' + str(
+        future[0]) + '_' + interval + '_A_' + str(round(dta, 2)) + '_S_' + source[
                     0] + '_' + unique_name
     folder_path = 'raw_model_vault'
     _dir= _ROOT_PATH()

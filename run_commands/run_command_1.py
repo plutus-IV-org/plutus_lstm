@@ -1,6 +1,13 @@
 from initiators.initiate_full_research import InitiateResearch
 import pandas as pd
-import glob
+from utilities.name_catcher import check_name_in_dict
+from app_service.app import generate_app
+import threading
+import logging
+
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.ERROR)
+from distutils.dir_util import copy_tree
 
 testing = True
 
@@ -23,18 +30,52 @@ for x in range(len(df.index)):
         -Full    
     """
 
-    source = df.loc[x,'SOURCE']
+    source = df.loc[x, 'SOURCE']
     asset = df.loc[x, 'ASSET']
     df_type = df.loc[x, 'TYPE']
-    pd = int(df.loc[x,'PAST'])
-    fd = int(df.loc[x,'FUTURE'])
-    epo = int(df.loc[x,'EPOCHS'])
+    pd = int(df.loc[x, 'PAST'])
+    fd = int(df.loc[x, 'FUTURE'])
+    epo = int(df.loc[x, 'EPOCHS'])
     interval = df.loc[x, 'INTERVAL']
 
-    i= InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
+    i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
     i._initialize_training()
     self_container[i.unique_name] = i.__dict__
 
-# input container into app maker
-#xreate force saver of the model
-q=1
+print(f"Available models to plot {list(self_container.keys())}")
+while True:
+    short_name = input("Please specify short name (or type 'END' to exit): ").lower()
+    if short_name == 'end':
+        break
+    else:
+        value = check_name_in_dict(str(short_name), self_container)
+        if value is None:
+            print("Please specify short name again.")
+            continue
+        else:
+            threading.Thread(target=generate_app, daemon=True, args=(self_container[value],)).start()
+            print(self_container.keys())
+            continue
+
+print(f"Available models for force savings are {list(self_container.keys())}")
+while True:
+    short_name = input("Would you like to force save a particular model (or type 'END' to exit):").lower()
+    if short_name == 'end':
+        break
+    else:
+        value = check_name_in_dict(str(short_name), self_container)
+        if value is None:
+            print("Please specify short name again.")
+            continue
+        else:
+            #
+            row_model_name = self_container[value]['raw_model_path']
+            old_path = self_container[value]['raw_model_path'].split('\\')[:-1]
+            str_old_path = '\\'.join(old_path)
+            main_vault_path_list = self_container[value]['raw_model_path'].split('\\')[:6]
+            main_vault_path_list.append('model_vault')
+            abs_path = main_vault_path_list + self_container[value]['raw_model_path'].split('\\')[7:-1]
+            str_abs_path = '\\'.join(abs_path)
+            copy_tree(str_old_path, str_abs_path)
+            print(f"{value} has been saved in  model vault")
+            continue

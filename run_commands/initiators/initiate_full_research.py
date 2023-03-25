@@ -12,7 +12,7 @@ import pandas as pd
 from utilities.service_functions import _slash_conversion
 from PATH_CONFIG import _ROOT_PATH
 from distutils.dir_util import copy_tree
-
+import pickle
 username = os.getlogin()
 
 
@@ -147,6 +147,21 @@ class InitiateResearch:
         old_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'picture_vault'
         new_abs_path = self.raw_model_path[:-7]
         copy_tree(old_abs_path, new_abs_path)
+
+        def save(self, filename):
+            with open(filename, 'wb') as f:
+                pickle.dump(self.__dict__, f)
+        """
+        For future reference
+        def load(self, filename):
+            with open(filename, 'rb') as f:
+                self.__dict__.update(pickle.load(f))
+        """
+        # specify the full path of the pickle file
+        filename = os.path.join(new_abs_path, 'lstm_research_dict.pickle')
+
+        # save the object as a pickle file in the specified directory
+        save(self,filename)
 
         def save_model_in_model_vault():
             old_abs_path = self.raw_model_path[:-7]
