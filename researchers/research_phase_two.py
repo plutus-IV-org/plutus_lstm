@@ -32,7 +32,7 @@ def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX,
         slash = _slash_conversion()
         _dir = _ROOT_PATH()
         slash = _slash_conversion()
-        best_model_df.to_csv(_dir + slash + 'vaults' + slash +'data_vault'+'best_models_register.csv', mode='a', index=True, header=False)
+        best_model_df.to_csv(_dir + slash + 'vaults' + slash +'data_vault' + slash+'best_models_register.csv', mode='a', index=True, header=False)
     else:
         pass
 
