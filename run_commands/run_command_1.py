@@ -4,10 +4,11 @@ from utilities.name_catcher import check_name_in_dict
 from app_service.app import generate_app
 import threading
 import logging
+from distutils.dir_util import copy_tree
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
-from distutils.dir_util import copy_tree
+
 
 testing = True
 
@@ -37,10 +38,13 @@ for x in range(len(df.index)):
     fd = int(df.loc[x, 'FUTURE'])
     epo = int(df.loc[x, 'EPOCHS'])
     interval = df.loc[x, 'INTERVAL']
+    try:
+        i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
+        i._initialize_training()
+        self_container[i.unique_name] = i.__dict__
+    except Exception:
+        pass
 
-    i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
-    i._initialize_training()
-    self_container[i.unique_name] = i.__dict__
 
 print(f"Available models to plot {list(self_container.keys())}")
 while True:
