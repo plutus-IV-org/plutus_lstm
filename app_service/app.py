@@ -433,6 +433,37 @@ def generate_app (cluster):
             dataset_pred[0] = aux_df[0]
             dataset_pred = dataset_pred[[0] + [col for col in dataset_pred.columns if col != 0]]
             dataset_pred.dropna(inplace=True)
+
+            gg = dataset_pred.copy()
+            gg2 = aux_df.copy()
+            gg2.columns = gg.columns
+            for x in gg.index:
+                lst = gg.columns.tolist()
+                lst.reverse()
+                for y in lst:
+                    gg.loc[x, y] = gg.loc[x, y] - gg.loc[x, 0]
+            gg[gg > 0] = 1
+            gg[gg < 0] = -1
+
+            #drop 0 day column
+            gg = gg[gg.columns.tolist()[1:]]
+
+            for x in gg2.index:
+                lst = gg2.columns.tolist()
+                lst.reverse()
+                for y in lst:
+                    gg2.loc[x, y] = gg2.loc[x, y] - gg2.loc[x,0]
+
+            gg2[gg2 > 0] = 1
+            gg2[gg2 < 0] = -1
+            #drop 0 day column
+            gg2 = gg2[gg2.columns.tolist()[1:]]
+
+            gg3 = gg + gg2
+            gg3[gg3 != 0] = 1
+            gg4 = gg3.sum() / len(gg3)
+
+
             a1 = aux_df.loc[match].T.pct_change().T.dropna(axis=1).values
             a2 = dataset_pred.loc[match].T.pct_change().T.dropna(axis=1).values
             a1 = a1
@@ -442,9 +473,10 @@ def generate_app (cluster):
             a3[a3 > 0] = 1
             a3[a3 < 0] = -1
             directional_accuracy = ((pd.DataFrame(a3)+1)/2).mean()
+
             print(f'Directional accuracy for model {model}')
-            print(directional_accuracy.values)
-            data_diff = pd.DataFrame(a3.T, columns=aux_df.loc[match].index)
+            print(gg4.values)
+            data_diff = pd.DataFrame(gg3.T, columns=aux_df.loc[match].index)
             data_diff.index = ind
 
 

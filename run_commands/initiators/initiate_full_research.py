@@ -170,6 +170,8 @@ class InitiateResearch:
                            self.raw_model_path.split('\\')[-2] + _slash_conversion()\
                            + self.raw_model_path.split('\\')[-1]
             copy_tree(old_abs_path, new_abs_path)
+            _send_discord_message(self.unique_name + ' has been saved in models vault')
+            print(self.unique_name + ' has been saved in models vault')
             return None
-        if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51:
+        if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing==False:
             save_model_in_model_vault()

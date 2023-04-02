@@ -84,10 +84,16 @@ def generate_data(cluster):
         predicted_price = asset_dict['yhat'].reshape(int(len(asset_dict['yhat'])/asset_dict['future'][0]),asset_dict['future'][0])
         actual_price = asset_dict['data_table'].tail(len(predicted_price))
         time_index = actual_price.index
-        actual_price_df = pd.DataFrame(actual_price, index=time_index)
-        predicted_price_df = pd.DataFrame(predicted_price, index = time_index)
 
+        # step required to assign properly the time index
+        # slicing time_index
+        future_days= int(full_name.split('_')[4])
+        sliced_time_index = time_index[:-future_days]
+        sliced_predicted_price = predicted_price[future_days:]
+
+        predicted_price_df = pd.DataFrame(sliced_predicted_price, index = sliced_time_index )
+        # need to add n future days in order to recreate 126xN actual and predicted tables
         asset_prediction_dic = {full_name:predicted_price_df.tail(126)}
-        asset_price_dic = {short_name:actual_price_df[['Close']].tail(126)}
+        asset_price_dic = {short_name:actual_price[['Close']].tail(126+future_days)}
         asset_names = [short_name]
         return asset_prediction_dic, asset_price_dic, asset_names, interval

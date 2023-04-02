@@ -108,8 +108,8 @@ def _directional_accuracy(actual,predicted, best_model):
     gg3 = gg + gg2
     gg3[gg3 != 0] = 1
     gg4 = gg3.sum() / len(gg3)
-    gg5 = gg3.tail(126).sum() / 126
-    gg6 = gg3.tail(252).sum()/ 252
+    gg5 = gg3.tail(126).sum() / len(gg3.tail(126))
+    gg6 = gg3.tail(252).sum()/ len(gg3.tail(252))
     # Only longs accuracy
     long_accuracy = ((gg[gg2>0] + gg2[gg2>0])/2).mean()
     # Only shorts accuracy
