@@ -150,7 +150,10 @@ class InitiateResearch:
 
         def save(self, filename):
             with open(filename, 'wb') as f:
-                pickle.dump(self.__dict__, f)
+                copy_dict = self.__dict__.copy()
+                copy_dict.pop('mod')
+                copy_dict.pop('history')
+                pickle.dump(copy_dict, f)
         """
         For future reference
         def load(self, filename):
@@ -167,11 +170,11 @@ class InitiateResearch:
             old_abs_path = self.raw_model_path[:-7]
             new_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'model_vault' \
                            + _slash_conversion() + 'LSTM_research_models' + _slash_conversion() + \
-                           self.raw_model_path.split('\\')[-2] + _slash_conversion()\
-                           + self.raw_model_path.split('\\')[-1]
+                           self.raw_model_path.split('\\')[-2] + _slash_conversion()
             copy_tree(old_abs_path, new_abs_path)
             _send_discord_message(self.unique_name + ' has been saved in models vault')
             print(self.unique_name + ' has been saved in models vault')
             return None
+
         if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing==False:
             save_model_in_model_vault()

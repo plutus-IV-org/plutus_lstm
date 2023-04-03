@@ -258,11 +258,12 @@ def generate_app (cluster):
                         # Creates an array of indecies from selected day to N-future days
                         range_of_prediction_illlia = aux_df.loc[first_predicted_day:].index[:num_of_prediction_days]
                         range_of_prediction = pd.date_range(start=first_predicted_day, end=last_predicted_day, )
-                        predictions_row = val.loc[selected_day]
+
                         try:
+                            predictions_row = val.loc[selected_day]
                             prediction_for_plot = predictions_row.to_frame()
                         except:
-                            prediction_for_plot = predictions_row.copy()
+                            pass
                         #Sets the indicies of prediction for the selected day
                         prediction_for_plot.set_index(range_of_prediction_illlia,inplace = True)
                         # adding actual price as first day of prediction to connect prediction lines with main line
@@ -341,7 +342,10 @@ def generate_app (cluster):
                                 aux_df.loc[x] = np.zeros(num_of_prediction_days)
                             range_of_prediction_illlia = aux_df.loc[first_predicted_day:].index[:num_of_prediction_days]
                             range_of_prediction = pd.date_range(start=first_predicted_day, end=last_predicted_day, )
-                            predictions_row = val.loc[selected_day]
+                            try:
+                                predictions_row = val.loc[selected_day]
+                            except Exception:
+                                pass
                             try:
                                 prediction_for_plot = predictions_row.to_frame()
                             except:

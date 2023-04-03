@@ -1,3 +1,8 @@
+"""
+This module runs LSTM research for specified tickers and their parameters. Automatically saves "good" models.
+Enables to visualise and force saves all existing models during the process.
+"""
+
 from initiators.initiate_full_research import InitiateResearch
 import pandas as pd
 from utilities.name_catcher import check_name_in_dict
