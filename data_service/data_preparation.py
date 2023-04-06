@@ -13,13 +13,14 @@ class DataPreparation:
         self.past = input_length
         self.source = source
         self.interval = interval
+        q=1
 
     def _download_prices(self):
-        if self.source == 'Yahoo':
+        if self.source == 'Yahoo' or self.source == 'Y':
             df = yd.downloader(self.asset, self.interval)
-        if self.source == 'Binance':
+        if self.source == 'Binance' or self.source == 'B':
             df = bd.downloader(self.asset, self.interval)
-        if self.source == 'AV':
+        if self.source == 'AV' or self.source == 'A':
             data = AVDownloader()
 
             if self.asset[-2:] == "=X":
@@ -80,7 +81,10 @@ class DataPreparation:
             return df
 
         def indicators(df, input_length):
-            l = int(input_length[0])
+            if type(input_length)==str:
+                l = int(input_length)
+            else:
+                l = int(input_length[0])
             l_s = int(l / 2)
             tech_dataset = df.copy()
             close_prices = tech_dataset[['Close', 'Open', 'High', 'Low', 'Volume']]

@@ -1,5 +1,5 @@
 import pandas as pd
-#from data_preparer_new import data_preparation
+from data_service.data_recreator import data_preparation
 
 def generate_data(cluster):
     """
@@ -16,7 +16,7 @@ def generate_data(cluster):
         asset_prediction_dic = {}
         asset_price_dic = {}
         asset_names = []
-        '''
+
         prepared_data, interval = data_preparation(cluster)
         keys = []
         for x in prepared_data.keys():
@@ -73,7 +73,7 @@ def generate_data(cluster):
             #asset_prediction.set_index(pd.to_datetime(asset_prediction.index))
             asset_prediction_dic[x] = asset_prediction
             asset_price_dic[asset_name] = asset_price
-            '''
+
         return asset_prediction_dic, asset_price_dic, asset_names, #interval
     else:
         asset_dict= cluster.copy()

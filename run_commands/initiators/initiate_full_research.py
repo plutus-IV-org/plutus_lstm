@@ -86,8 +86,8 @@ class InitiateResearch:
         self.research_results = _run_training(self.trainX, self.trainY, self.asset,
                                               self.type, self.past, self.future, self.testing)
 
-        _send_discord_message('TESTING - 1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
-        _send_discord_message('TESTING - 2nd phase for ' + self.asset + ' ' + self.type + ' has been started')
+        _send_discord_message('1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
+        _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has been started')
 
         self.history, self.predicted_test_x, self.mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
                                                              self.research_results,

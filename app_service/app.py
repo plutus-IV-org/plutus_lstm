@@ -15,78 +15,80 @@ from dash.exceptions import PreventUpdate
 
 
 def main_plot_formatting(fig):
-#function to format plots
+    # function to format plots
     font = "system-ui"
     fig.update_layout(font_family=font,
-                       paper_bgcolor='rgba(0,0,0,0)',
-                       plot_bgcolor='rgba(0,0,0,0)',
-                       title_font_size=20, title_x=0.1, showlegend=True, font_color='rgb(255, 255, 255)',
-                       xaxis=dict(
-                           showline=True,
-                           showgrid=False,
-                           showticklabels=True,
-                           linecolor='rgb(150, 150, 150)',
-                           linewidth=2,
-                           ticks='outside',
-                           tickfont=dict(
-                               family=font,
-                               size=12,
-                               color='rgb(255, 255, 255)',
-                           )),
-                       yaxis=dict(
-                           showline=True,
-                           showgrid=False,
-                           showticklabels=True,
-                           linecolor='rgb(150, 150, 150)',
-                           linewidth=2,
-                           ticks='outside',
-                           tickfont=dict(
-                               family=font,
-                               size=12,
-                               color='rgb(255, 255, 255)',
-                           )), )
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)',
+                      title_font_size=20, title_x=0.1, showlegend=True, font_color='rgb(255, 255, 255)',
+                      xaxis=dict(
+                          showline=True,
+                          showgrid=False,
+                          showticklabels=True,
+                          linecolor='rgb(150, 150, 150)',
+                          linewidth=2,
+                          ticks='outside',
+                          tickfont=dict(
+                              family=font,
+                              size=12,
+                              color='rgb(255, 255, 255)',
+                          )),
+                      yaxis=dict(
+                          showline=True,
+                          showgrid=False,
+                          showticklabels=True,
+                          linecolor='rgb(150, 150, 150)',
+                          linewidth=2,
+                          ticks='outside',
+                          tickfont=dict(
+                              family=font,
+                              size=12,
+                              color='rgb(255, 255, 255)',
+                          )), )
     fig.update_xaxes(showgrid=True, gridwidth=0.5, gridcolor='rgb(150, 150, 150)')
     fig.update_yaxes(showgrid=True, gridwidth=0.5, gridcolor='rgb(150, 150, 150)')
     return fig
 
+
 def secondary_plot_formatting(fig):
-#function to format plots
+    # function to format plots
     font = "system-ui"
     fig.update_layout(font_family=font,
-                       paper_bgcolor='rgba(0,0,0,0)',
-                       plot_bgcolor='rgba(0,0,0,0)',
-                       title_font_size=20, title_x=0.1, showlegend=False, font_color='rgb(255, 255, 255)',
-                       xaxis=dict(
-                           showline=False,
-                           showgrid=False,
-                           showticklabels=False,
-                           linecolor='rgb(0, 0, 0)',
-                           linewidth=2,
-                           ticks='outside',
-                           tickfont=dict(
-                               family=font,
-                               size=12,
-                               color='rgb(255, 255, 255)',
-                           )),
-                       yaxis=dict(
-                           showline=False,
-                           showgrid=False,
-                           showticklabels=True,
-                           linecolor='rgb(255, 255, 255)',
-                           linewidth=2,
-                           ticks='outside',
-                           tickfont=dict(
-                               family=font,
-                               size=12,
-                               color='rgb(255, 255, 255)',
-                           )), )
+                      paper_bgcolor='rgba(0,0,0,0)',
+                      plot_bgcolor='rgba(0,0,0,0)',
+                      title_font_size=20, title_x=0.1, showlegend=False, font_color='rgb(255, 255, 255)',
+                      xaxis=dict(
+                          showline=False,
+                          showgrid=False,
+                          showticklabels=False,
+                          linecolor='rgb(0, 0, 0)',
+                          linewidth=2,
+                          ticks='outside',
+                          tickfont=dict(
+                              family=font,
+                              size=12,
+                              color='rgb(255, 255, 255)',
+                          )),
+                      yaxis=dict(
+                          showline=False,
+                          showgrid=False,
+                          showticklabels=True,
+                          linecolor='rgb(255, 255, 255)',
+                          linewidth=2,
+                          ticks='outside',
+                          tickfont=dict(
+                              family=font,
+                              size=12,
+                              color='rgb(255, 255, 255)',
+                          )), )
     return fig
 
-def main_plot (data, asset_name, max_length, hover_or_click):
-#function to create main price plot
+
+def main_plot(data, asset_name, max_length, hover_or_click):
+    # function to create main price plot
     df = data[asset_name]
-    x=df.index
-    y=df.iloc[:, 0]
+    x = df.index
+    y = df.iloc[:, 0]
 
     if hover_or_click == 'Hover mode':
         fig = go.Figure(data=go.Scatter(x=x,
@@ -95,14 +97,14 @@ def main_plot (data, asset_name, max_length, hover_or_click):
                                         name="Price",
                                         mode='lines+markers',
                                         hoverinfo='none'))
-                                        #hovertemplate = 'Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'))
+        # hovertemplate = 'Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'))
     else:
         fig = go.Figure(data=go.Scatter(x=x,
                                         y=y,
                                         connectgaps=True,
                                         name="Price",
                                         mode='lines+markers',
-                                        #hoverinfo='none'))
+                                        # hoverinfo='none'))
                                         hovertemplate='Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'))
 
     fig.update_traces(line_color='white')
@@ -113,21 +115,22 @@ def main_plot (data, asset_name, max_length, hover_or_click):
 
     return fig, df
 
-def generate_app (cluster):
-#building components of the app
+
+def generate_app(cluster):
+    # building components of the app
 
     app = JupyterDash(external_stylesheets=[dbc.themes.DARKLY])
     # app = Dash(__name__)
-    asset_predictions, asset_prices, asset_names,interval = generate_data(cluster)
+    asset_predictions, asset_prices, asset_names, interval = generate_data(cluster)
     ap = asset_prices.copy()
     drop_down_assets = dcc.Dropdown(
-                asset_names,
-                multi=False,
-                value=asset_names[0],
-                id="assets_dropdown",
-                style={'color': 'black',
-                       'width': '50%'}
-                )
+        asset_names,
+        multi=False,
+        value=asset_names[0],
+        id="assets_dropdown",
+        style={'color': 'black',
+               'width': '50%'}
+    )
     hover_or_click = dcc.RadioItems(['Hover mode', 'Click mode'], 'Hover mode', id="hover_or_click")
 
     # drop_down_models = dcc.Dropdown(
@@ -149,7 +152,6 @@ def generate_app (cluster):
         ]
     )
 
-
     secondary_graphs = dbc.Card(
         [
             html.Div(
@@ -159,8 +161,6 @@ def generate_app (cluster):
             ),
         ]
     )
-
-
 
     tab1_content = dbc.Container(
         [
@@ -205,7 +205,6 @@ def generate_app (cluster):
         Input('main_graph', 'clickData'),
         Input('hover_or_click', 'value'),
         prevent_initial_call=False)
-
     def add_prediction(asset_name, hover_data, click_data, hover_or_click):
 
         if hover_or_click == 'Hover mode':
@@ -215,7 +214,7 @@ def generate_app (cluster):
                 for n in asset_predictions.keys():
                     el.append(int(len(asset_predictions[n])))
                 max_length = max(el)
-                fig, single_asset_price = main_plot(ap, asset_name,max_length, hover_or_click)
+                fig, single_asset_price = main_plot(ap, asset_name, max_length, hover_or_click)
                 fig = main_plot_formatting(fig)
                 return fig
 
@@ -232,26 +231,28 @@ def generate_app (cluster):
                 ip = next(iter(asset_predictions)).split('_')[5]
 
                 for key, val in asset_predictions.items():
-                    #Next period from the selected day
-                    first_predicted_day = pd.to_datetime(hover_data['points'][0]['x']) + pd.to_timedelta(int(ip[:-1]), unit=ip[-1])
-                    #if asset name is in asset prediction keys
+                    # Next period from the selected day
+                    first_predicted_day = pd.to_datetime(hover_data['points'][0]['x']) + pd.to_timedelta(int(ip[:-1]),
+                                                                                                         unit=ip[-1])
+                    # if asset name is in asset prediction keys
                     if re.search(asset_name, str(key)):
                         num_of_prediction_days = len(val.columns)
                         # N-future day from the selected day
-                        last_predicted_day = first_predicted_day + pd.to_timedelta((num_of_prediction_days*int(ip[:-1])), unit=ip[-1])
+                        last_predicted_day = first_predicted_day + pd.to_timedelta(
+                            (num_of_prediction_days * int(ip[:-1])), unit=ip[-1])
                         # Prediction table copy
                         aux_df = val.copy()
                         # Real business n-future day
                         # Creates n future days from the last index
-                        if ip[-1]=='m':
-                            ld = val.index[-1] + dt.timedelta(minutes = int(ip[:-1]))
-                            add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1]+'min'))[1:]
+                        if ip[-1] == 'm':
+                            ld = val.index[-1] + dt.timedelta(minutes=int(ip[:-1]))
+                            add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1] + 'min'))[1:]
                         if ip[-1] == 'd':
                             ld = val.index[-1] + BDay(num_of_prediction_days)
                             add_days = pd.bdate_range(aux_df.index[-1], ld)[1:]
                         if ip[-1] == 'w':
-                            ld = val.index[-1] + dt.timedelta(weeks = int(ip[:-1]))
-                            add_days = pd.bdate_range(aux_df.index[-1], ld, freq = 'W')[1:]
+                            ld = val.index[-1] + dt.timedelta(weeks=int(ip[:-1]))
+                            add_days = pd.bdate_range(aux_df.index[-1], ld, freq='W')[1:]
 
                         for x in add_days:
                             aux_df.loc[x] = np.zeros(num_of_prediction_days)
@@ -264,12 +265,12 @@ def generate_app (cluster):
                             prediction_for_plot = predictions_row.to_frame()
                         except:
                             pass
-                        #Sets the indicies of prediction for the selected day
-                        prediction_for_plot.set_index(range_of_prediction_illlia,inplace = True)
+                        # Sets the indicies of prediction for the selected day
+                        prediction_for_plot.set_index(range_of_prediction_illlia, inplace=True)
                         # adding actual price as first day of prediction to connect prediction lines with main line
                         prediction_for_plot.loc[selected_day] = ap[asset_name].loc[selected_day][0]
                         prediction_for_plot = prediction_for_plot.sort_index()
-                        #Leaves empty data for real price but in future
+                        # Leaves empty data for real price but in future
                         for n in add_days:
                             single_asset_price.loc[n] = None
                         df_plot = pd.merge(single_asset_price, prediction_for_plot, left_index=True, right_index=True)
@@ -287,7 +288,7 @@ def generate_app (cluster):
                                                  name=key,
                                                  connectgaps=True,
                                                  hoverinfo='none'))
-                                                 #hovertemplate='Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'))
+                        # hovertemplate='Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'))
                     else:
                         pass
 
@@ -295,94 +296,93 @@ def generate_app (cluster):
                 return fig
         else:
 
-                if (hover_data is None or click_data is None):
-                    el = []
-                    for n in asset_predictions.keys():
-                        el.append(int(len(asset_predictions[n])))
-                    max_length = max(el)
-                    fig, single_asset_price = main_plot(ap, asset_name, max_length, hover_or_click)
-                    fig = main_plot_formatting(fig)
-                    return fig
+            if (hover_data is None or click_data is None):
+                el = []
+                for n in asset_predictions.keys():
+                    el.append(int(len(asset_predictions[n])))
+                max_length = max(el)
+                fig, single_asset_price = main_plot(ap, asset_name, max_length, hover_or_click)
+                fig = main_plot_formatting(fig)
+                return fig
 
-                else:
-                    el = []
-                    for n in asset_predictions.keys():
-                        el.append(int(len(asset_predictions[n])))
-                    max_length = max(el)
-                    fig, single_asset_price = main_plot(asset_prices, asset_name, max_length, hover_or_click)
+            else:
+                el = []
+                for n in asset_predictions.keys():
+                    el.append(int(len(asset_predictions[n])))
+                max_length = max(el)
+                fig, single_asset_price = main_plot(asset_prices, asset_name, max_length, hover_or_click)
 
-                    selected_day = pd.to_datetime(click_data['points'][0]['x'])
-                    # interval period ex. '15m' , '1d'
-                    ip = next(iter(asset_predictions)).split('_')[5]
+                selected_day = pd.to_datetime(click_data['points'][0]['x'])
+                # interval period ex. '15m' , '1d'
+                ip = next(iter(asset_predictions)).split('_')[5]
 
-                    for key, val in asset_predictions.items():
-                        # Next period from the selected day
-                        first_predicted_day = pd.to_datetime(hover_data['points'][0]['x']) + pd.to_timedelta(
-                            int(ip[:-1]), unit=ip[-1])
-                        # if asset name is in asset prediction keys
-                        if re.search(asset_name, str(key)):
-                            num_of_prediction_days = len(val.columns)
-                            # N-future day from the selected day
-                            last_predicted_day = first_predicted_day + pd.to_timedelta(
-                                (num_of_prediction_days * int(ip[:-1])), unit=ip[-1])
-                            # Prediction table copy
-                            aux_df = val.copy()
-                            # Real business n-future day
-                            # Creates n future days from the last index
-                            if ip[-1] == 'm':
-                                ld = val.index[-1] + dt.timedelta(minutes=int(ip[:-1]))
-                                add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1] + 'min'))[1:]
-                            if ip[-1] == 'd':
-                                ld = val.index[-1] + BDay(num_of_prediction_days)
-                                add_days = pd.bdate_range(aux_df.index[-1], ld)[1:]
-                            if ip[-1] == 'w':
-                                ld = val.index[-1] + dt.timedelta(weeks=int(ip[:-1]))
-                                add_days = pd.bdate_range(aux_df.index[-1], ld, freq='W')[1:]
-                            for x in add_days:
-                                aux_df.loc[x] = np.zeros(num_of_prediction_days)
-                            range_of_prediction_illlia = aux_df.loc[first_predicted_day:].index[:num_of_prediction_days]
-                            range_of_prediction = pd.date_range(start=first_predicted_day, end=last_predicted_day, )
-                            try:
-                                predictions_row = val.loc[selected_day]
-                            except Exception:
-                                pass
-                            try:
-                                prediction_for_plot = predictions_row.to_frame()
-                            except:
-                                prediction_for_plot = predictions_row.copy()
-                            prediction_for_plot.set_index(range_of_prediction_illlia, inplace=True)
-                            # adding actual price as first day of prediction to connect prediction lines with main line
-                            prediction_for_plot.loc[selected_day] = ap[asset_name].loc[selected_day][0]
-                            prediction_for_plot = prediction_for_plot.sort_index()
-                            for n in add_days:
-                                single_asset_price.loc[n] = None
-                            df_plot = pd.merge(single_asset_price, prediction_for_plot, left_index=True, right_index=True)
-                            df_plot.columns = [asset_name + '_actual', asset_name + '_predicted']
-
-                            # x = prediction_for_plot.index
-                            # y = prediction_for_plot.iloc[:, 0]
-
-                            x = df_plot.index
-                            y = df_plot[asset_name + '_predicted']
-
-                            fig.add_trace(go.Scatter(x=x,
-                                                     y=y,
-                                                     mode='lines',
-                                                     name=key,
-                                                     connectgaps=True,
-                                                     #hoverinfo='none'))
-                                                     hovertemplate='Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'))
-                        else:
+                for key, val in asset_predictions.items():
+                    # Next period from the selected day
+                    first_predicted_day = pd.to_datetime(hover_data['points'][0]['x']) + pd.to_timedelta(
+                        int(ip[:-1]), unit=ip[-1])
+                    # if asset name is in asset prediction keys
+                    if re.search(asset_name, str(key)):
+                        num_of_prediction_days = len(val.columns)
+                        # N-future day from the selected day
+                        last_predicted_day = first_predicted_day + pd.to_timedelta(
+                            (num_of_prediction_days * int(ip[:-1])), unit=ip[-1])
+                        # Prediction table copy
+                        aux_df = val.copy()
+                        # Real business n-future day
+                        # Creates n future days from the last index
+                        if ip[-1] == 'm':
+                            ld = val.index[-1] + dt.timedelta(minutes=int(ip[:-1]))
+                            add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1] + 'min'))[1:]
+                        if ip[-1] == 'd':
+                            ld = val.index[-1] + BDay(num_of_prediction_days)
+                            add_days = pd.bdate_range(aux_df.index[-1], ld)[1:]
+                        if ip[-1] == 'w':
+                            ld = val.index[-1] + dt.timedelta(weeks=int(ip[:-1]))
+                            add_days = pd.bdate_range(aux_df.index[-1], ld, freq='W')[1:]
+                        for x in add_days:
+                            aux_df.loc[x] = np.zeros(num_of_prediction_days)
+                        range_of_prediction_illlia = aux_df.loc[first_predicted_day:].index[:num_of_prediction_days]
+                        range_of_prediction = pd.date_range(start=first_predicted_day, end=last_predicted_day, )
+                        try:
+                            predictions_row = val.loc[selected_day]
+                        except Exception:
                             pass
+                        try:
+                            prediction_for_plot = predictions_row.to_frame()
+                        except:
+                            prediction_for_plot = predictions_row.copy()
+                        prediction_for_plot.set_index(range_of_prediction_illlia, inplace=True)
+                        # adding actual price as first day of prediction to connect prediction lines with main line
+                        prediction_for_plot.loc[selected_day] = ap[asset_name].loc[selected_day][0]
+                        prediction_for_plot = prediction_for_plot.sort_index()
+                        for n in add_days:
+                            single_asset_price.loc[n] = None
+                        df_plot = pd.merge(single_asset_price, prediction_for_plot, left_index=True, right_index=True)
+                        df_plot.columns = [asset_name + '_actual', asset_name + '_predicted']
 
-                    fig = main_plot_formatting(fig)
-                    return fig
+                        # x = prediction_for_plot.index
+                        # y = prediction_for_plot.iloc[:, 0]
+
+                        x = df_plot.index
+                        y = df_plot[asset_name + '_predicted']
+
+                        fig.add_trace(go.Scatter(x=x,
+                                                 y=y,
+                                                 mode='lines',
+                                                 name=key,
+                                                 connectgaps=True,
+                                                 # hoverinfo='none'))
+                                                 hovertemplate='Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'))
+                    else:
+                        pass
+
+                fig = main_plot_formatting(fig)
+                return fig
 
     @app.callback(
         Output('secondary_graph', 'figure'),
         Input('assets_dropdown', 'value'),
         prevent_initial_call=False)
-
     def add_prediction_on_click(asset_name):
 
         relevant_models = []
@@ -449,24 +449,23 @@ def generate_app (cluster):
             gg[gg > 0] = 1
             gg[gg < 0] = -1
 
-            #drop 0 day column
+            # drop 0 day column
             gg = gg[gg.columns.tolist()[1:]]
 
             for x in gg2.index:
                 lst = gg2.columns.tolist()
                 lst.reverse()
                 for y in lst:
-                    gg2.loc[x, y] = gg2.loc[x, y] - gg2.loc[x,0]
+                    gg2.loc[x, y] = gg2.loc[x, y] - gg2.loc[x, 0]
 
             gg2[gg2 > 0] = 1
             gg2[gg2 < 0] = -1
-            #drop 0 day column
+            # drop 0 day column
             gg2 = gg2[gg2.columns.tolist()[1:]]
 
             gg3 = gg + gg2
             gg3[gg3 != 0] = 1
             gg4 = gg3.sum() / len(gg3)
-
 
             a1 = aux_df.loc[match].T.pct_change().T.dropna(axis=1).values
             a2 = dataset_pred.loc[match].T.pct_change().T.dropna(axis=1).values
@@ -476,14 +475,12 @@ def generate_app (cluster):
             a3 = a1 * a2
             a3[a3 > 0] = 1
             a3[a3 < 0] = -1
-            directional_accuracy = ((pd.DataFrame(a3)+1)/2).mean()
+            directional_accuracy = ((pd.DataFrame(a3) + 1) / 2).mean()
 
             print(f'Directional accuracy for model {model}')
             print(gg4.values)
             data_diff = pd.DataFrame(gg3.T, columns=aux_df.loc[match].index)
             data_diff.index = ind
-
-
 
             div_fig = go.Heatmap(z=data.values,
                                  x=data.columns,
@@ -497,15 +494,13 @@ def generate_app (cluster):
                                   colorscale='BuGn',
                                   showscale=False)
 
-
-
             fig.add_trace(div_fig, row=div_fig_row, col=1)
             fig.add_trace(diff_fig, row=diff_fig_row, col=1)
 
             div_fig_row += 2
             diff_fig_row += 2
 
-        def dinamic_height (num_models):
+        def dinamic_height(num_models):
             check_models = num_models * 2
             if 1 <= check_models <= 2:
                 return 300 * (num_models * 2)
@@ -514,8 +509,7 @@ def generate_app (cluster):
             else:
                 return 100 * (num_models * 2)
 
-
-        fig.update_layout(height = dinamic_height(num_relevant_models), title_text = "Models performance")
+        fig.update_layout(height=dinamic_height(num_relevant_models), title_text="Models performance")
 
         fig = secondary_plot_formatting(fig)
 
