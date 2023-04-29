@@ -1,18 +1,9 @@
 import pandas as pd
 from data_service.data_recreator import data_preparation
 
+
 def generate_data(cluster):
-    """
-    Types of clusters:
-    stocks
-    bonds
-    commodities
-    etf
-    forex
-    indecies
-    crypto
-    """
-    if type(cluster)==str:
+    if type(cluster) == str:
         asset_prediction_dic = {}
         asset_price_dic = {}
         asset_names = []
@@ -22,44 +13,50 @@ def generate_data(cluster):
         for x in prepared_data.keys():
             keys.append(x)
 
-        #crate avarage line
-        names = []
-        for i in keys:
-            names.append(i.split('_')[0])
-        names = set(names).copy()
+        # Create a set of unique names and intervals
+        names = set(i.split('_')[0] for i in keys)
+        intervals = set(i.split('_')[5] for i in keys)
 
         def returnSum(myDict):
-            list = []
-            for i in myDict:
-                list.append(myDict[i])
-            final = sum(list)
-            return final
+            total = 0
+            for value in myDict.values():
+                total += value
+            return total
+
         for n in names:
-            value = 0
-            dfa = {}
-            for i in keys:
-                if i.startswith(n):
-                    value +=1
-                    dfa[value,prepared_data[i][1].shape[1] ] = prepared_data[i][1]
-            l1 = []
-            for h in dfa.keys():
-                l1.append(list(h)[1])
-            l2 = set(l1)
-            for t in l2:
-                dfa2 = {}
-                val =0
+            for interval in intervals:
+                value = 0
+                dfa = {}
+                for i in keys:
+                    if i.startswith(n) and (i.split('_')+['dummy_ending'])[5]==interval:
+                        value += 1
+                        dfa[value, prepared_data[i][1].shape[1]] = prepared_data[i][1]
+
+                l1 = []
                 for h in dfa.keys():
-                    if list(h)[1]==t:
-                        val +=1
-                        dfa2[val] = dfa[h]
-                summed = returnSum(dfa2)
-                dic_sum = summed.dropna()/val
-                prepared_data[n + '_average_' + str(t) + '_days'] = prepared_data[next(iter(prepared_data))][0], dic_sum
-                keys.append(n + '_average_' + str(t) + '_days')
+                    l1.append(list(h)[1])
+                l2 = set(l1)
+
+                for t in l2:
+                    dfa2 = {}
+                    val = 0
+                    for h in dfa.keys():
+                        if list(h)[1] == t:
+                            val += 1
+                            dfa2[val] = dfa[h]
+
+                    summed = returnSum(dfa2)
+                    dic_sum = summed.dropna() / val
+
+                    prepared_data_keys_list =  list(prepared_data.keys())
+                    filtered_list = [x for x in prepared_data_keys_list if interval in x]
+                    prepared_data[n + '_average_' + str(t) + '_future_steps_' + interval] = prepared_data[filtered_list[0]][0], dic_sum
+                    keys.append(n + '_average_' + str(t) + '_future_steps_' + interval)
 
         for x in keys:
             asset_name = x.split('_')[0]
-            asset_names.append(asset_name)
+            interval = x.split('_')[5]
+            asset_names.append(asset_name + "_" + interval)
             asset_names = list(set(asset_names))
 
             asset_price = prepared_data[x][0][asset_name]
@@ -67,14 +64,11 @@ def generate_data(cluster):
             asset_price = asset_price.set_index(pd.to_datetime(asset_price.index))
 
             asset_prediction = pd.DataFrame(prepared_data[x][1])
-            #if x ==keys[-1]:
-            #    q=1
-            #asset_prediction.index = asset_price.index
-            #asset_prediction.set_index(pd.to_datetime(asset_prediction.index))
             asset_prediction_dic[x] = asset_prediction
-            asset_price_dic[asset_name] = asset_price
+            asset_price_dic[asset_name + "_" + interval] = asset_price
 
-        return asset_prediction_dic, asset_price_dic, asset_names, #interval
+        return asset_prediction_dic, asset_price_dic, asset_names, interval
+
     else:
         asset_dict= cluster.copy()
         short_name = asset_dict['asset']

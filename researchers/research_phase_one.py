@@ -11,13 +11,18 @@ import talos
 from talos.utils import lr_normalizer
 from talos import Reporting
 import os
-
+from tensorflow.keras import backend as K
+import warnings
+import numpy as np
+import tensorflow as tf
 import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 pd.options.mode.chained_assignment = None
 
 # source, interval,data
 def _run_training(trainX, trainY,asset,type,p_d,f_d, testing):
+    # Enable eager execution
+    #tf.config.run_functions_eagerly(True)
     if testing == True:
         from utilities.hyperparameters_test import _hyperparameters_one_layer, \
             _hyperparameters_two_layers, _hyperparameters_three_layers
@@ -27,13 +32,59 @@ def _run_training(trainX, trainY,asset,type,p_d,f_d, testing):
 
     results_table = pd.DataFrame()
 
+    #@tf.function
+    def inverse_mda(y_true, y_pred):
+        arr_pred = tf.convert_to_tensor(y_pred)
+        arr_act = tf.convert_to_tensor(y_true)
+        cus_sum_pred = tf.math.cumsum(arr_pred, axis=1)
+        cus_sum_actual = tf.math.cumsum(arr_act, axis=1)
+        multiplication = cus_sum_actual * cus_sum_pred
+        stop_grad_multiplication = tf.stop_gradient(multiplication)
+        multiplication = tf.where(stop_grad_multiplication > 0, 1.0, 0.0)
+        mean = tf.keras.backend.mean(tf.cast(multiplication, tf.float32))
+        epsilon = 1e-7  # A small constant to prevent division by zero
+        inv_mean = 1 / (mean + epsilon)
+        return inv_mean
+    # Define a custom metric function
+    #@tf.function
+    def directional_loss(y_true, y_pred):
+        # Calculate the difference between consecutive elements in y_true and y_pred
+        y_true_cumsum = tf.cumsum(y_true, axis=1)
+        y_pred_cumsum = tf.cumsum(y_pred, axis=1)
+
+        # Calculate the signs of the differences
+        true_sign = tf.sign(y_true_cumsum)
+        pred_sign = tf.sign(y_pred_cumsum)
+
+        # Calculate the absolute difference between the true and predicted signs
+        sign_diff = tf.abs(true_sign - pred_sign)
+
+        # Calculate the mean of the absolute differences
+        loss = tf.reduce_mean(sign_diff) / 2.0
+
+        return loss
+    #@tf.function
+    def mda(y_true, y_pred):
+        arr_pred = tf.convert_to_tensor(y_pred)
+        arr_act = tf.convert_to_tensor(y_true)
+        cus_sum_pred = tf.math.cumsum(arr_pred, axis=1)
+        cus_sum_actual = tf.math.cumsum(arr_act, axis=1)
+        multiplication = cus_sum_actual * cus_sum_pred
+        multiplication = tf.where(multiplication > 0, 1, 0)
+        mean = tf.keras.backend.mean(tf.cast(multiplication, tf.float32))
+        return mean
+
     def model_builder_1(trainX, trainY, testX, testY, params):
+        trainX = tf.cast(trainX, tf.float32)
+        trainY = tf.cast(trainY, tf.float32)
+        testX = tf.cast(testX, tf.float32)
+        testY = tf.cast(testY, tf.float32)
         model = Sequential()
         model.add(LSTM(params['first_lstm_layer'], activation=params['activation'],
                        input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(trainY.shape[1]))
-        model.compile(optimizer=params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                      loss=params['loss'],
+        model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
+                      loss='mse',
                       metrics=['accuracy'])
         history = model.fit(trainX, trainY,
                             batch_size=params['batch_size'],
@@ -81,7 +132,6 @@ def _run_training(trainX, trainY,asset,type,p_d,f_d, testing):
 
 
     def model_builder_2(trainX, trainY, testX, testY, params):
-
         model = Sequential()
         model.add(LSTM(params['first_lstm_layer'], return_sequences=True, activation=params['activation'],
                        input_shape=(trainX.shape[1], trainX.shape[2])))
@@ -89,8 +139,8 @@ def _run_training(trainX, trainY,asset,type,p_d,f_d, testing):
         model.add(LSTM(params['second_lstm_layer'], activation=params['activation'],
                        input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(trainY.shape[1]))
-        model.compile(optimizer=params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                      loss=params['loss'],
+        model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
+                      loss='mse',
                       metrics=['accuracy'])
         history = model.fit(trainX, trainY,
                             batch_size=params['batch_size'],
@@ -153,9 +203,9 @@ def _run_training(trainX, trainY,asset,type,p_d,f_d, testing):
         model.add(LSTM(params['third_lstm_layer'], activation=params['activation'],
                        input_shape=(trainX.shape[1], trainX.shape[2])))
         model.add(Dense(trainY.shape[1]))
-        model.compile(optimizer=params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                      loss=params['loss'],
-                      metrics=['accuracy'])
+        model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
+                      loss='mse',
+                      metrics=[ 'accuracy'])
 
         history = model.fit(trainX, trainY,
                             batch_size=params['batch_size'],
@@ -208,7 +258,7 @@ def _run_training(trainX, trainY,asset,type,p_d,f_d, testing):
 
     # Reorder columns of final table
     results_table = results_table[
-        ['round_epochs', 'past_days', 'future_days', 'loss', 'accuracy', 'val_loss', 'val_accuracy', 'lr',
+        ['round_epochs', 'past_days', 'future_days', 'loss','accuracy', 'val_loss', 'val_accuracy', 'lr',
          'epochs', 'batch_size', 'dropout', 'first_lstm_layer', 'second_lstm_layer', 'third_lstm_layer',
          'optimizer', 'loss.1', 'activation', 'weight_regulizer']]
 

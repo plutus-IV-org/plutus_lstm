@@ -228,14 +228,19 @@ def generate_app(cluster):
                 selected_day = pd.to_datetime(hover_data['points'][0]['x'])
 
                 # interval period ex. '15m' , '1d'
-                ip = next(iter(asset_predictions)).split('_')[5]
+                for k in asset_predictions.keys():
+                    name = k.split('_')[0]
+                    interval = k.split('_')[5]
+                    full_name = name + "_" + interval
+                    if full_name == asset_name or name == asset_name:
+                        ip = interval
 
                 for key, val in asset_predictions.items():
                     # Next period from the selected day
                     first_predicted_day = pd.to_datetime(hover_data['points'][0]['x']) + pd.to_timedelta(int(ip[:-1]),
                                                                                                          unit=ip[-1])
                     # if asset name is in asset prediction keys
-                    if re.search(asset_name, str(key)):
+                    if re.search(asset_name, key.split('_')[0] + "_" + key.split('_')[5]):
                         num_of_prediction_days = len(val.columns)
                         # N-future day from the selected day
                         last_predicted_day = first_predicted_day + pd.to_timedelta(
@@ -245,13 +250,13 @@ def generate_app(cluster):
                         # Real business n-future day
                         # Creates n future days from the last index
                         if ip[-1] == 'm':
-                            ld = val.index[-1] + dt.timedelta(minutes=int(ip[:-1]))
+                            ld = val.index[-1] + dt.timedelta(minutes=(int(ip[:-1])*num_of_prediction_days))
                             add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1] + 'min'))[1:]
                         if ip[-1] == 'd':
                             ld = val.index[-1] + BDay(num_of_prediction_days)
                             add_days = pd.bdate_range(aux_df.index[-1], ld)[1:]
                         if ip[-1] == 'w':
-                            ld = val.index[-1] + dt.timedelta(weeks=int(ip[:-1]))
+                            ld = val.index[-1] + dt.timedelta(weeks=(int(ip[:-1])*num_of_prediction_days))
                             add_days = pd.bdate_range(aux_df.index[-1], ld, freq='W')[1:]
 
                         for x in add_days:
@@ -321,7 +326,7 @@ def generate_app(cluster):
                     first_predicted_day = pd.to_datetime(hover_data['points'][0]['x']) + pd.to_timedelta(
                         int(ip[:-1]), unit=ip[-1])
                     # if asset name is in asset prediction keys
-                    if re.search(asset_name, str(key)):
+                    if re.search(asset_name, key.split('_')[0] + "_" + key.split('_')[5]):
                         num_of_prediction_days = len(val.columns)
                         # N-future day from the selected day
                         last_predicted_day = first_predicted_day + pd.to_timedelta(
@@ -388,7 +393,7 @@ def generate_app(cluster):
         relevant_models = []
 
         for key, val in asset_predictions.items():
-            if re.search(asset_name, str(key)):
+            if re.search(asset_name, key.split('_')[0] + "_" + key.split('_')[5]):
                 relevant_models.append(key)
 
         num_relevant_models = len(relevant_models)
@@ -515,4 +520,4 @@ def generate_app(cluster):
 
         return fig
 
-    app.run_server(debug=False)
+    app.run_server(debug=False, port = np.random.randint(0, 1024))

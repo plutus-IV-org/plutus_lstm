@@ -1,9 +1,3 @@
-
-from utilities.service_functions import _slash_conversion
-"""
-Put it in initializer 05.03.23
-
-"""
 import platform
 import numpy as np
 import pandas as pd
@@ -11,6 +5,7 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import LSTM, Dense, Dropout
 import os
+import tensorflow as tf
 import keras
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion
@@ -22,7 +17,7 @@ pd.options.mode.chained_assignment = None
 #mod = Sequential()
 
 def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX, testY, epo=500):
-    best_model = table.iloc[table['accuracy'].argmax(), :]
+    best_model = table.iloc[table['loss'].argmin(), :]
     if testing == False:
         from datetime import datetime
         best_model_df = pd.DataFrame(best_model)
@@ -38,6 +33,36 @@ def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX,
 
     mod = Sequential()
     epo = epo
+    # Enable eager execution
+    #tf.config.run_functions_eagerly(True)
+    def directional_loss(y_true, y_pred):
+        # Calculate the difference between consecutive elements in y_true and y_pred
+        y_true_cumsum = tf.cumsum(y_true, axis=1)
+        y_pred_cumsum = tf.cumsum(y_pred, axis=1)
+
+        # Calculate the signs of the differences
+        true_sign = tf.sign(y_true_cumsum)
+        pred_sign = tf.sign(y_pred_cumsum)
+
+        # Calculate the absolute difference between the true and predicted signs
+        sign_diff = tf.abs(true_sign - pred_sign)
+
+        # Calculate the mean of the absolute differences
+        loss = tf.reduce_mean(sign_diff) / 2.0
+
+        return loss
+
+    # @tf.function
+    def mda(y_true, y_pred):
+        arr_pred = tf.convert_to_tensor(y_pred)
+        arr_act = tf.convert_to_tensor(y_true)
+        cus_sum_pred = tf.math.cumsum(arr_pred, axis=1)
+        cus_sum_actual = tf.math.cumsum(arr_act, axis=1)
+        multiplication = cus_sum_actual * cus_sum_pred
+        multiplication = tf.where(multiplication > 0, 1, 0)
+        mean = tf.keras.backend.mean(tf.cast(multiplication, tf.float32))
+        return mean
+
     if str(best_model['second_lstm_layer']) == 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))

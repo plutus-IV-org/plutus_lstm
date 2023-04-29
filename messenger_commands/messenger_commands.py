@@ -111,6 +111,22 @@ def _visualize_loss_results(results):
     # _send_telegram_photo('picture_vault' + slash + 'loss.png')
     _send_discord_photo(dir_path + slash+'vaults'+slash +'picture_vault' + slash + 'loss.png')
 
+def _visualize_mda_results(results):
+
+    history = results.history
+    fig = plt.figure(figsize=(14, 8))
+    plt.plot(history['val_mda'])
+    plt.plot(history['mda'])
+    plt.legend(['val_mda', 'mda'])
+    plt.title('mda')
+    plt.xlabel('epochs')
+    plt.ylabel('mda')
+    slash = _slash_conversion()
+    dir_path = _ROOT_PATH()
+    fig.savefig(dir_path + slash+'vaults'+slash +'picture_vault' + slash + 'mda.png')
+    # _send_telegram_photo('picture_vault' + slash + 'accuracy.png')
+    _send_discord_photo(dir_path + slash+'vaults'+slash +'picture_vault' + slash + 'mda.png')
+
 def _visualize_accuracy_results(results):
 
     history = results.history

@@ -5,7 +5,7 @@ from messenger_commands.messenger_commands import _send_telegram_msg, _dataframe
 from data_service.data_preparation import DataPreparation
 from data_service.data_transformation import _data_normalisation, _split_data, _distribution_type, _data_denormalisation
 from messenger_commands.messenger_commands import _visualize_loss_results, _visualize_accuracy_results, \
-    _visualize_prediction_results, _visualize_prediction_results_daily
+    _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results
 from utilities.metrics import _rmse, _mape, _r, _gradient_accuracy_test, _directional_accuracy
 from utilities.unique_name_generator import name_generator
 import pandas as pd
@@ -13,6 +13,7 @@ from utilities.service_functions import _slash_conversion
 from PATH_CONFIG import _ROOT_PATH
 from distutils.dir_util import copy_tree
 import pickle
+import numpy as np
 username = os.getlogin()
 
 
@@ -96,6 +97,9 @@ class InitiateResearch:
 
         _visualize_loss_results(self.history)
         _visualize_accuracy_results(self.history)
+        #_visualize_mda_results(self.history)
+
+
 
         self.yhat = _data_denormalisation(self.predicted_test_x, self.data_table[['Close']], int(self.future[0]),
                                           self.testY).reshape(-1, 1)
