@@ -43,10 +43,10 @@ for x in range(len(df.index)):
     fd = int(df.loc[x, 'FUTURE'])
     epo = int(df.loc[x, 'EPOCHS'])
     interval = df.loc[x, 'INTERVAL']
-    """
+
     i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
-    i._initialize_training()
-    self_container[i.unique_name] = i.__dict__
+    research_dict = i._initialize_training()
+    self_container[research_dict['unique_name']] = research_dict
     """
     try:
         i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
@@ -54,7 +54,7 @@ for x in range(len(df.index)):
         self_container[i.unique_name] = i.__dict__
     except Exception:
         pass
-
+    """
 
 print(f"Available models to plot {list(self_container.keys())}")
 while True:

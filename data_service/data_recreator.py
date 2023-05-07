@@ -8,6 +8,9 @@ pd.options.mode.chained_assignment = None
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion
 import tensorflow as tf
+from UI.custom_type import ListboxSelection
+import pickle
+
 
 def directional_loss(y_true, y_pred):
     # Calculate the difference between consecutive elements in y_true and y_pred
@@ -42,6 +45,16 @@ def data_preparation(cluster:str):
     for a,b in zip(models_names,scope_lst):
         dp = DataPreparation(b[0],b[1],a.split('_')[9], a.split('_')[5],a.split('_')[3])
         data = dp._download_prices()
+        if b[1]== "Custom":
+            lstm_research_dict_path = path + sl + a + sl + 'lstm_research_dict.pickle'
+            path + sl + a + sl + 'lstm_research_dict.pickle'
+            with open(lstm_research_dict_path, "rb") as f:
+                loaded_dict = pickle.load(f)
+            custom_indicators = loaded_dict['data_table'].columns.tolist()
+            data = data[custom_indicators]
+            data = data.dropna()
+            if len(data) < 1500:
+                raise Exception('Too short selected data')
         #data = _download_prices(b[0], 'Close')
         sep = a.split('_')
         f_d = int(sep[4])

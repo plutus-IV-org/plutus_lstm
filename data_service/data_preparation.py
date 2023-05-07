@@ -13,7 +13,7 @@ class DataPreparation:
         self.past = input_length
         self.source = source
         self.interval = interval
-        q=1
+
 
     def _download_prices(self):
         if self.source == 'Yahoo' or self.source == 'Y':
@@ -81,26 +81,54 @@ class DataPreparation:
             return df
 
         def indicators(df, input_length):
-            if type(input_length)==str:
+            """
+            Calculate and add technical indicators to a given DataFrame.
+
+            Parameters:
+            df (pandas.DataFrame): Input DataFrame containing columns 'Close', 'Open', 'High', 'Low', and 'Volume'.
+            input_length (int, str or list): Length used for calculating technical indicators. If a string or a list containing a single value is provided, the function will convert it to an integer.
+
+            Returns:
+            pandas.DataFrame: DataFrame containing original data with added technical indicators.
+            """
+
+            # Convert input_length to integer if it's a string or a list containing a single value
+            if type(input_length) == str:
                 l = int(input_length)
             else:
                 l = int(input_length[0])
-            l_s = int(l / 2)
+
+            l_s = int(l / 2)  # Calculate the shorter window (l_s) for SMA SMALL
+
+            # Copy the input DataFrame
             tech_dataset = df.copy()
             close_prices = tech_dataset[['Close', 'Open', 'High', 'Low', 'Volume']]
             close_prices.index.name = None
             df = close_prices.copy()
             df.dropna(inplace=True)
             df_tech_ind = df.copy()
+
+            # Calculate and add SMA SMALL and SMA BIG
             df_tech_ind['SMA SMALL'] = df_tech_ind['Close'].rolling(window=l_s).mean()
             df_tech_ind['SMA BIG'] = df_tech_ind['Close'].rolling(window=l).mean()
+
+            # Calculate and add MACD
             df_tech_ind['MACD'] = df_tech_ind['SMA BIG'] / df_tech_ind['SMA SMALL']
+
+            # Calculate and add RSI
             df_tech_ind['RSI'] = ta.rsi(df_tech_ind['Close'], length=l)
+
+            # Calculate and add ADX
             adx = ta.adx(df_tech_ind['High'], df_tech_ind['Low'], df_tech_ind['Close'], length=l)
             df_tech_ind = pd.concat([df_tech_ind, adx], axis=1)
+
+            # Calculate and add AROON
             aroon = ta.aroon(df_tech_ind['High'], df_tech_ind['Low'], length=l) + 100
             df_tech_ind = pd.concat([df_tech_ind, aroon[aroon.columns[-1]]], axis=1)
+
+            # Remove rows with missing values
             df_tech_ind.dropna(inplace=True)
+
             return df_tech_ind
 
         def macro(df, interval):
@@ -170,8 +198,7 @@ class DataPreparation:
                 print('Sentiment dictionary doesnt contain the asset')
             df = pd.concat([q1, q2, q3, q4, q5, q6, q7], axis=1)
             df = df.loc[:, ~df.columns.duplicated()]
-            df = df.dropna().copy()
-            df_type = "Full"
+
         first_column = df.pop('Close')
         df.insert(0, 'Close', first_column)
 

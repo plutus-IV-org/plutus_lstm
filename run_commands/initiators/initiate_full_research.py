@@ -13,6 +13,7 @@ from utilities.service_functions import _slash_conversion
 from PATH_CONFIG import _ROOT_PATH
 from distutils.dir_util import copy_tree
 import pickle
+from UI.custom_type import ListboxSelection
 import numpy as np
 username = os.getlogin()
 
@@ -33,6 +34,7 @@ class InitiateResearch:
         self.interval = interval
         self.container = {}
         self.root_path = _ROOT_PATH()
+        self.loops_to_run = 1
 
     def _initialize_training(self):
 
@@ -68,9 +70,20 @@ class InitiateResearch:
         # Getting close table
 
         df = DataPreparation(self.asset, self.type, self.source, self.interval, self.past)._download_prices()
+
+        if self.type == "Custom":
+            allowed_indicators = df.columns.tolist()
+            listbox_selector = ListboxSelection(allowed_indicators)
+            selected_items, times_to_run = listbox_selector.get_selected_items()
+            _send_discord_message(
+                f'Custom type has been identified. Selected indictiors are {selected_items}. LSTM research will run {times_to_run} times.')
+            self.loops_to_run = int(times_to_run)
+            df = df[selected_items]
+            df = df.dropna()
+            if len(df) < 1500:
+                raise Exception('Too short selected data')
         df = df.dropna()
         self.data_table = df.copy()
-
         # Normalisation
         normalised_data = _data_normalisation(df)
         self.data_table_normalized = normalised_data.copy()
@@ -83,102 +96,117 @@ class InitiateResearch:
             for f_d in self.future:
                 # Split and fractionating based on dc zscore
                 self.trainX, self.trainY, self.testX, self.testY = _split_data(normalised_data, f_d, p_d)
+        loop_number = 1
+        storage = {}
+        while loop_number <= self.loops_to_run:
+            loop_number +=1
+            self.research_results = _run_training(self.trainX, self.trainY, self.asset,
+                                                  self.type, self.past, self.future, self.testing)
 
-        self.research_results = _run_training(self.trainX, self.trainY, self.asset,
-                                              self.type, self.past, self.future, self.testing)
+            _send_discord_message('1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
+            _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has been started')
 
-        _send_discord_message('1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
-        _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has been started')
+            self.history, self.predicted_test_x, self.mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
+                                                                 self.research_results,
+                                                                 self.trainX, self.trainY, self.testX, self.testY,
+                                                                 epo=self.epo)
 
-        self.history, self.predicted_test_x, self.mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
-                                                             self.research_results,
-                                                             self.trainX, self.trainY, self.testX, self.testY,
-                                                             epo=self.epo)
-
-        _visualize_loss_results(self.history)
-        _visualize_accuracy_results(self.history)
-        #_visualize_mda_results(self.history)
+            _visualize_loss_results(self.history)
+            _visualize_accuracy_results(self.history)
+            #_visualize_mda_results(self.history)
 
 
 
-        self.yhat = _data_denormalisation(self.predicted_test_x, self.data_table[['Close']], int(self.future[0]),
-                                          self.testY).reshape(-1, 1)
-        self.actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
-                                            self.testY).reshape(-1, 1)
+            self.yhat = _data_denormalisation(self.predicted_test_x, self.data_table[['Close']], int(self.future[0]),
+                                              self.testY).reshape(-1, 1)
+            self.actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
+                                                self.testY).reshape(-1, 1)
 
-        _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
-        _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
+            _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
+            _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
 
-        # Metrics
+            # Metrics
 
-        self.RMSE = _rmse(self.yhat, self.actual)
-        self.MAPE = _mape(self.yhat, self.actual)
-        self.R = _r(self.yhat, self.actual)
+            self.RMSE = _rmse(self.yhat, self.actual)
+            self.MAPE = _mape(self.yhat, self.actual)
+            self.R = _r(self.yhat, self.actual)
 
-        sf = pd.Series({'Root mean squared error': self.RMSE, 'Mean absolute percentage error': self.MAPE,
-                        "Linear correlation": self.R})
+            sf = pd.Series({'Root mean squared error': self.RMSE, 'Mean absolute percentage error': self.MAPE,
+                            "Linear correlation": self.R})
 
-        # Gradiant accuracy test
-        best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
-        std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(self.yhat, self.actual, best_model)
+            # Gradiant accuracy test
+            best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
+            std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(self.yhat, self.actual, best_model)
 
-        sum_frame = pd.DataFrame({'Std': std, 'LPM 0': lpm0, 'LPM 1': lpm1, 'LPM 2': lpm2})
-        sum_frame.index = fd_index
-        sum_frame1 = pd.concat([best_model, sf])
-        sum_frame1 = sum_frame1.to_frame()
+            sum_frame = pd.DataFrame({'Std': std, 'LPM 0': lpm0, 'LPM 1': lpm1, 'LPM 2': lpm2})
+            sum_frame.index = fd_index
+            sum_frame1 = pd.concat([best_model, sf])
+            sum_frame1 = sum_frame1.to_frame()
 
-        sum_frame2 = _directional_accuracy(self.actual, self.yhat, best_model)
-        sum_frame2.index = fd_index
-        dta = sum_frame2["Directional accuracy total"].mean()
-        slash = _slash_conversion()
-        self.unique_name = name_generator()
-        sum_frame1.loc['Directional accuracy'] = str(round(dta, 3))
-        sum_frame1.loc['Name'] = self.unique_name
-        self.general_model_table = sum_frame1
+            sum_frame2 = _directional_accuracy(self.actual, self.yhat, best_model)
+            sum_frame2.index = fd_index
+            dta = sum_frame2["Directional accuracy total"].mean()
+            slash = _slash_conversion()
+            self.unique_name = name_generator()
+            sum_frame1.loc['Directional accuracy'] = str(round(dta, 3))
+            sum_frame1.loc['Name'] = self.unique_name
+            self.general_model_table = sum_frame1
+            self.mean_directional_accuracy = dta
+            self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future, self.interval,
+                                                   dta, self.source,
+                                                   self.unique_name,self.mod)
 
-        self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future, self.interval,
-                                               dta, self.source,
-                                               self.unique_name,self.mod)
+            _dataframe_to_png(sum_frame1, "table_training_details")
 
-        _dataframe_to_png(sum_frame1, "table_training_details")
+            _dataframe_to_png(sum_frame2, "table_dir_vector")
 
-        _dataframe_to_png(sum_frame2, "table_dir_vector")
+            _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
 
-        _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
+            self.general_model_table.to_csv(self.raw_model_path[:-7] + "general_model_table.csv", index=False, header=False)
 
-        self.general_model_table.to_csv(self.raw_model_path[:-7] + "general_model_table.csv", index=False, header=False)
-
-        old_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'picture_vault'
-        new_abs_path = self.raw_model_path[:-7]
-        copy_tree(old_abs_path, new_abs_path)
-
-        def save(self, filename):
-            with open(filename, 'wb') as f:
-                copy_dict = self.__dict__.copy()
-                copy_dict.pop('mod')
-                copy_dict.pop('history')
-                pickle.dump(copy_dict, f)
-        """
-        For future reference
-        def load(self, filename):
-            with open(filename, 'rb') as f:
-                self.__dict__.update(pickle.load(f))
-        """
-        # specify the full path of the pickle file
-        filename = os.path.join(new_abs_path, 'lstm_research_dict.pickle')
-
-        # save the object as a pickle file in the specified directory
-        save(self,filename)
-
-        def save_model_in_model_vault():
-            old_abs_path = self.raw_model_path[:-7]
-            new_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'model_vault' \
-                           + _slash_conversion() + 'LSTM_research_models' + _slash_conversion() + \
-                           self.raw_model_path.split('\\')[-2] + _slash_conversion()
+            old_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'picture_vault'
+            new_abs_path = self.raw_model_path[:-7]
             copy_tree(old_abs_path, new_abs_path)
-            _send_discord_message(self.unique_name + ' has been saved in models vault')
-            print(self.unique_name + ' has been saved in models vault')
-            return None
 
-        if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing==False:
-            save_model_in_model_vault()
+            def save(self, filename):
+                with open(filename, 'wb') as f:
+                    copy_dict = self.__dict__.copy()
+                    copy_dict.pop('mod')
+                    copy_dict.pop('history')
+                    pickle.dump(copy_dict, f)
+            """
+            For future reference
+            def load(self, filename):
+                with open(filename, 'rb') as f:
+                    self.__dict__.update(pickle.load(f))
+            """
+            # specify the full path of the pickle file
+            filename = os.path.join(new_abs_path, 'lstm_research_dict.pickle')
+
+            # save the object as a pickle file in the specified directory
+            save(self,filename)
+
+            def save_model_in_model_vault():
+                old_abs_path = self.raw_model_path[:-7]
+                new_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'model_vault' \
+                               + _slash_conversion() + 'LSTM_research_models' + _slash_conversion() + \
+                               self.raw_model_path.split('\\')[-2] + _slash_conversion()
+                copy_tree(old_abs_path, new_abs_path)
+                _send_discord_message(self.unique_name + ' has been saved in models vault')
+                print(self.unique_name + ' has been saved in models vault')
+                return None
+
+            if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing==False:
+                save_model_in_model_vault()
+
+            storage[self.unique_name] = vars(self)
+            if self.type == 'Custom':
+                _send_discord_message(f'End of {loop_number-1} loop')
+        # Find the dictionary with the highest mean_directional_accuracy
+        max_accuracy_dict_key = max(storage, key=lambda x: storage[x]["mean_directional_accuracy"])
+
+        # Get the dictionary with the highest mean_directional_accuracy
+        max_accuracy_dict = storage[max_accuracy_dict_key]
+
+        self.loops_to_run = 1
+        return max_accuracy_dict
