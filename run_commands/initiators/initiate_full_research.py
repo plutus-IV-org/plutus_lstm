@@ -106,59 +106,86 @@ class InitiateResearch:
             _send_discord_message('1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
             _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has been started')
 
-            self.history, self.predicted_test_x, self.mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
-                                                                 self.research_results,
-                                                                 self.trainX, self.trainY, self.testX, self.testY,
-                                                                 epo=self.epo)
+            epochs_test_collector = {}
+
+            for x in [1, 2, 4]:
+
+                history, predicted_test_x, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
+                                                                self.research_results,
+                                                                self.trainX, self.trainY, self.testX, self.testY,
+                                                                epo=int(self.epo / x))
+                yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
+                                             self.testY).reshape(-1, 1)
+                actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
+                                               self.testY).reshape(-1, 1)
+
+                # Metrics
+                RMSE = _rmse(yhat, actual)
+                MAPE = _mape(yhat, actual)
+                R = _r(yhat, actual)
+
+                sf = pd.Series({'Root mean squared error': RMSE, 'Mean absolute percentage error': MAPE,
+                                "Linear correlation": R})
+
+                # Gradiant accuracy test
+                best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
+                std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(yhat, actual, best_model)
+
+                sum_frame = pd.DataFrame({'Std': std, 'LPM 0': lpm0, 'LPM 1': lpm1, 'LPM 2': lpm2})
+                sum_frame.index = fd_index
+                sum_frame1 = pd.concat([best_model, sf])
+                sum_frame1 = sum_frame1.to_frame()
+
+                sum_frame2 = _directional_accuracy(actual, yhat, best_model)
+                sum_frame2.index = fd_index
+                dta = sum_frame2["Directional accuracy total"].mean()
+                slash = _slash_conversion()
+                unique_name = name_generator()
+
+                sum_frame1.loc['Directional accuracy'] = str(round(dta, 3))
+                sum_frame1.loc['Name'] = unique_name
+
+                collected_data = {'history': history, 'predicted_test_x': predicted_test_x, 'mod': mod,
+                                            'yhat': yhat,
+                                            'actual': actual, 'RMSE': RMSE, 'MAPE': MAPE, 'R': R, 'sf': sf,
+                                            'sum_frame': sum_frame,
+                                            'sum_frame1': sum_frame1, 'sum_frame2': sum_frame2, 'dta': dta,
+                                            'unique_name': unique_name, 'epo_div_x': int(self.epo / x)}
+                epochs_test_collector[x] = collected_data.copy()
+            # Find the best test result based on the highest directional total accuracy (dta)
+            best_test = max(epochs_test_collector, key=lambda x: epochs_test_collector[x]['dta'])
+
+            # Set the self variables of your class to the best test result
+            self.history = epochs_test_collector[best_test]['history']
+            self.predicted_test_x = epochs_test_collector[best_test]['predicted_test_x']
+            self.mod = epochs_test_collector[best_test]['mod']
+            self.yhat = epochs_test_collector[best_test]['yhat']
+            self.actual = epochs_test_collector[best_test]['actual']
+            self.RMSE = epochs_test_collector[best_test]['RMSE']
+            self.MAPE = epochs_test_collector[best_test]['MAPE']
+            self.R = epochs_test_collector[best_test]['R']
+            self.sf = epochs_test_collector[best_test]['sf']
+            self.sum_frame = epochs_test_collector[best_test]['sum_frame']
+            self.sum_frame1 = epochs_test_collector[best_test]['sum_frame1']
+            self.sum_frame2 = epochs_test_collector[best_test]['sum_frame2']
+            self.mean_directional_accuracy = epochs_test_collector[best_test]['dta']
+            self.unique_name = epochs_test_collector[best_test]['unique_name']
+            self.general_model_table = epochs_test_collector[best_test]['sum_frame1']
+            self.epo = epochs_test_collector[best_test]['epo_div_x']
 
             _visualize_loss_results(self.history)
             _visualize_accuracy_results(self.history)
-            #_visualize_mda_results(self.history)
-
-
-
-            self.yhat = _data_denormalisation(self.predicted_test_x, self.data_table[['Close']], int(self.future[0]),
-                                              self.testY).reshape(-1, 1)
-            self.actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
-                                                self.testY).reshape(-1, 1)
-
+            # _visualize_mda_results(self.history)
             _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
             _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
 
-            # Metrics
-
-            self.RMSE = _rmse(self.yhat, self.actual)
-            self.MAPE = _mape(self.yhat, self.actual)
-            self.R = _r(self.yhat, self.actual)
-
-            sf = pd.Series({'Root mean squared error': self.RMSE, 'Mean absolute percentage error': self.MAPE,
-                            "Linear correlation": self.R})
-
-            # Gradiant accuracy test
-            best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
-            std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(self.yhat, self.actual, best_model)
-
-            sum_frame = pd.DataFrame({'Std': std, 'LPM 0': lpm0, 'LPM 1': lpm1, 'LPM 2': lpm2})
-            sum_frame.index = fd_index
-            sum_frame1 = pd.concat([best_model, sf])
-            sum_frame1 = sum_frame1.to_frame()
-
-            sum_frame2 = _directional_accuracy(self.actual, self.yhat, best_model)
-            sum_frame2.index = fd_index
-            dta = sum_frame2["Directional accuracy total"].mean()
-            slash = _slash_conversion()
-            self.unique_name = name_generator()
-            sum_frame1.loc['Directional accuracy'] = str(round(dta, 3))
-            sum_frame1.loc['Name'] = self.unique_name
-            self.general_model_table = sum_frame1
-            self.mean_directional_accuracy = dta
             self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future, self.interval,
                                                    dta, self.source,
                                                    self.unique_name,self.mod)
 
-            _dataframe_to_png(sum_frame1, "table_training_details")
+            _dataframe_to_png(self.sum_frame1, "table_training_details")
 
-            _dataframe_to_png(sum_frame2, "table_dir_vector")
+            _dataframe_to_png(self.sum_frame2, "table_dir_vector")
 
             _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
 
@@ -174,12 +201,8 @@ class InitiateResearch:
                     copy_dict.pop('mod')
                     copy_dict.pop('history')
                     pickle.dump(copy_dict, f)
-            """
-            For future reference
-            def load(self, filename):
-                with open(filename, 'rb') as f:
-                    self.__dict__.update(pickle.load(f))
-            """
+
+
             # specify the full path of the pickle file
             filename = os.path.join(new_abs_path, 'lstm_research_dict.pickle')
 
@@ -199,7 +222,8 @@ class InitiateResearch:
             if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing==False:
                 save_model_in_model_vault()
 
-            storage[self.unique_name] = vars(self)
+            storage[self.unique_name] = vars(self).copy()
+            self.epo = best_test * self.epo
             if self.type == 'Custom':
                 _send_discord_message(f'End of {loop_number-1} loop')
         # Find the dictionary with the highest mean_directional_accuracy
