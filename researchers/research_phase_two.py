@@ -9,7 +9,7 @@ import tensorflow as tf
 import keras
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion
-
+from datetime import datetime
 plt.style.use('ggplot')
 import warnings
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
@@ -17,9 +17,11 @@ pd.options.mode.chained_assignment = None
 #mod = Sequential()
 
 def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX, testY, epo=500):
-    best_model = table.iloc[table['loss'].argmin(), :]
-    if testing == False:
-        from datetime import datetime
+    try:
+        best_model = table.iloc[table['loss'].argmin(), :]
+    except Exception:
+        best_model = table
+    if testing == False and type(table)!=dict:
         best_model_df = pd.DataFrame(best_model)
         best_model_df.columns = [datetime.now()]
         best_model_df = best_model_df.T

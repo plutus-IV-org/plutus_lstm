@@ -51,7 +51,7 @@ def check_file_name_in_list(file_name: str, file_list: list) -> str:
         max_score = 0
         matched_file_name = ''
         for file in file_list:
-            file_words = file.split('_')
+            file_words = file.split('_')[10:]
             for word in file_words:
                 score = fuzz.partial_ratio(file_name.lower(), word.lower())
                 if score > max_score:

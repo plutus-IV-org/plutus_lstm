@@ -8,6 +8,7 @@ from messenger_commands.messenger_commands import _visualize_loss_results, _visu
     _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results
 from utilities.metrics import _rmse, _mape, _r, _gradient_accuracy_test, _directional_accuracy
 from utilities.unique_name_generator import name_generator
+from UI.custom_layers import CustomLayerUI
 import pandas as pd
 from utilities.service_functions import _slash_conversion
 from PATH_CONFIG import _ROOT_PATH
@@ -20,7 +21,7 @@ username = os.getlogin()
 
 class InitiateResearch:
     def __init__(self, asset: str, df_type: str, past_period: list, future_period: list,
-                 epo: int, testing: bool, source: str, interval: str):
+                 epo: int, testing: bool, source: str, interval: str, custom_layers:bool=False):
         """
 
         """
@@ -35,6 +36,7 @@ class InitiateResearch:
         self.container = {}
         self.root_path = _ROOT_PATH()
         self.loops_to_run = 1
+        self.custom_layers = custom_layers
 
     def _initialize_training(self):
 
@@ -82,6 +84,10 @@ class InitiateResearch:
             df = df.dropna()
             if len(df) < 1500:
                 raise Exception('Too short selected data')
+        if self.custom_layers == True:
+            custom_layer_ui = CustomLayerUI()
+            custom_layer_ui.show()
+
         df = df.dropna()
         self.data_table = df.copy()
         # Normalisation
@@ -100,10 +106,13 @@ class InitiateResearch:
         storage = {}
         while loop_number <= self.loops_to_run:
             loop_number +=1
-            self.research_results = _run_training(self.trainX, self.trainY, self.asset,
-                                                  self.type, self.past, self.future, self.testing)
+            if self.custom_layers == False:
+                self.research_results = _run_training(self.trainX, self.trainY, self.asset,
+                                                      self.type, self.past, self.future, self.testing)
 
-            _send_discord_message('1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
+                _send_discord_message('1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
+            else:
+                self.research_results = custom_layer_ui.custom_layers_dict
             _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has been started')
 
             epochs_test_collector = {}
@@ -128,7 +137,12 @@ class InitiateResearch:
                                 "Linear correlation": R})
 
                 # Gradiant accuracy test
-                best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
+                if self.custom_layers == True:
+                    best_model = pd.Series(self.research_results)
+                    best_model.loc['future_days'] = self.future[0]
+                    best_model.loc['past_days'] = self.past[0]
+                else:
+                    best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
                 std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(yhat, actual, best_model)
 
                 sum_frame = pd.DataFrame({'Std': std, 'LPM 0': lpm0, 'LPM 1': lpm1, 'LPM 2': lpm2})
@@ -180,7 +194,7 @@ class InitiateResearch:
             _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
 
             self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future, self.interval,
-                                                   dta, self.source,
+                                                   self.mean_directional_accuracy.dta, self.source,
                                                    self.unique_name,self.mod)
 
             _dataframe_to_png(self.sum_frame1, "table_training_details")
@@ -225,7 +239,7 @@ class InitiateResearch:
             storage[self.unique_name] = vars(self).copy()
             self.epo = best_test * self.epo
             if self.type == 'Custom':
-                _send_discord_message(f'End of {loop_number-1} loop')
+                _send_discord_message(f'End of {loop_number-1} loop. Unique name is {self.unique_name}.')
         # Find the dictionary with the highest mean_directional_accuracy
         max_accuracy_dict_key = max(storage, key=lambda x: storage[x]["mean_directional_accuracy"])
 

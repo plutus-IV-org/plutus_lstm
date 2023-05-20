@@ -48,8 +48,8 @@ class ListboxSelection:
         continue_button = ttk.Button(button_frame, text="Continue", command=lambda: self._extract_selected_items(callback, q))
         continue_button.pack()
 
-        self.times_to_run_spinbox = tk.Spinbox(button_frame, from_=1, to=10, wrap=True)
-        self.times_to_run_spinbox.pack(pady=(10, 0))
+        self.times_to_run_spinbox = tk.Spinbox(button_frame, from_=1, to=50, wrap=True)
+        self.times_to_run_spinbox.pack(pady=(50, 0))
 
         self.root.mainloop()
 
