@@ -217,8 +217,9 @@ def generate_app(cluster):
                 fig, single_asset_price = main_plot(ap, asset_name, max_length, hover_or_click)
                 fig = main_plot_formatting(fig)
                 return fig
-
+            # if you click/select a point of time...
             else:
+                # get maximum length of the predictions like 126/200/300 etc.
                 el = []
                 for n in asset_predictions.keys():
                     el.append(int(len(asset_predictions[n])))
@@ -226,8 +227,7 @@ def generate_app(cluster):
                 fig, single_asset_price = main_plot(asset_prices, asset_name, max_length, hover_or_click)
                 # The day you select on hover mode graph
                 selected_day = pd.to_datetime(hover_data['points'][0]['x'])
-
-                # interval period ex. '15m' , '1d'
+                # Getting interval period ex. '15m' , '1d'
                 for k in asset_predictions.keys():
                     name = k.split('_')[0]
                     interval = k.split('_')[5]
@@ -236,25 +236,30 @@ def generate_app(cluster):
                         ip = interval
 
                 for key, val in asset_predictions.items():
-                    # Next period from the selected day
+                    # Next period from the selected timestamp
                     first_predicted_day = pd.to_datetime(hover_data['points'][0]['x']) + pd.to_timedelta(int(ip[:-1]),
                                                                                                          unit=ip[-1])
                     # if asset name is in asset prediction keys
                     if re.search(asset_name, key.split('_')[0] + "_" + key.split('_')[5]):
                         num_of_prediction_days = len(val.columns)
                         # N-future day from the selected day
-                        last_predicted_day = first_predicted_day + pd.to_timedelta(
-                            (num_of_prediction_days * int(ip[:-1])), unit=ip[-1])
                         # Prediction table copy
                         aux_df = val.copy()
                         # Real business n-future day
+                        if '-USD' in name:
+                            is_crypto = True
+                        else:
+                            is_crypto = False
                         # Creates n future days from the last index
                         if ip[-1] == 'm':
                             ld = val.index[-1] + dt.timedelta(minutes=(int(ip[:-1])*num_of_prediction_days))
                             add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1] + 'min'))[1:]
-                        if ip[-1] == 'd':
+                        if ip[-1] == 'd' and is_crypto==False:
                             ld = val.index[-1] + BDay(num_of_prediction_days)
                             add_days = pd.bdate_range(aux_df.index[-1], ld)[1:]
+                        if ip[-1] == 'd' and is_crypto == True:
+                            ld = val.index[-1] + dt.timedelta(days=(int(ip[:-1]) * num_of_prediction_days))
+                            add_days = pd.date_range(val.index[-1], ld, freq='D')[1:]
                         if ip[-1] == 'w':
                             ld = val.index[-1] + dt.timedelta(weeks=(int(ip[:-1])*num_of_prediction_days))
                             add_days = pd.bdate_range(aux_df.index[-1], ld, freq='W')[1:]
@@ -263,7 +268,6 @@ def generate_app(cluster):
                             aux_df.loc[x] = np.zeros(num_of_prediction_days)
                         # Creates an array of indecies from selected day to N-future days
                         range_of_prediction_illlia = aux_df.loc[first_predicted_day:].index[:num_of_prediction_days]
-                        range_of_prediction = pd.date_range(start=first_predicted_day, end=last_predicted_day, )
 
                         try:
                             predictions_row = val.loc[selected_day]
@@ -276,8 +280,13 @@ def generate_app(cluster):
                         prediction_for_plot.loc[selected_day] = ap[asset_name].loc[selected_day][0]
                         prediction_for_plot = prediction_for_plot.sort_index()
                         # Leaves empty data for real price but in future
+
+
+                        ld = single_asset_price.index[-1] + dt.timedelta(days=(int(ip[:-1]) * num_of_prediction_days))
+                        add_days = pd.date_range(single_asset_price.index[-1], ld, freq='D')[1:]
                         for n in add_days:
                             single_asset_price.loc[n] = None
+
                         df_plot = pd.merge(single_asset_price, prediction_for_plot, left_index=True, right_index=True)
                         df_plot.columns = [asset_name + '_actual', asset_name + '_predicted']
 
