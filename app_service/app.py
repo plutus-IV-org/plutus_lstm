@@ -343,13 +343,21 @@ def generate_app(cluster):
                         # Prediction table copy
                         aux_df = val.copy()
                         # Real business n-future day
+                        if '-USD' in asset_name:
+                            is_crypto = True
+                        else:
+                            is_crypto = False
+                        # Real business n-future day
                         # Creates n future days from the last index
                         if ip[-1] == 'm':
                             ld = val.index[-1] + dt.timedelta(minutes=int(ip[:-1]))
                             add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1] + 'min'))[1:]
-                        if ip[-1] == 'd':
+                        if ip[-1] == 'd' and is_crypto == False:
                             ld = val.index[-1] + BDay(num_of_prediction_days)
                             add_days = pd.bdate_range(aux_df.index[-1], ld)[1:]
+                        if ip[-1] == 'd' and is_crypto == True:
+                            ld = val.index[-1] + dt.timedelta(days=(int(ip[:-1]) * num_of_prediction_days))
+                            add_days = pd.date_range(val.index[-1], ld, freq='D')[1:]
                         if ip[-1] == 'w':
                             ld = val.index[-1] + dt.timedelta(weeks=int(ip[:-1]))
                             add_days = pd.bdate_range(aux_df.index[-1], ld, freq='W')[1:]
@@ -369,6 +377,8 @@ def generate_app(cluster):
                         # adding actual price as first day of prediction to connect prediction lines with main line
                         prediction_for_plot.loc[selected_day] = ap[asset_name].loc[selected_day][0]
                         prediction_for_plot = prediction_for_plot.sort_index()
+                        ld = single_asset_price.index[-1] + dt.timedelta(days=(int(ip[:-1]) * num_of_prediction_days))
+                        add_days = pd.date_range(single_asset_price.index[-1], ld, freq='D')[1:]
                         for n in add_days:
                             single_asset_price.loc[n] = None
                         df_plot = pd.merge(single_asset_price, prediction_for_plot, left_index=True, right_index=True)
