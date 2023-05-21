@@ -89,6 +89,44 @@ def main_plot(data, asset_name, max_length, hover_or_click):
     df = data[asset_name]
     x = df.index
     y = df.iloc[:, 0]
+    # Get the difference between each timestamp
+    time_diffs = df.index.to_series().diff()
+
+    # Calculate the most common difference (in nanoseconds)
+    most_common_diff = time_diffs.value_counts().idxmax()
+
+    # Convert the most common difference to days, weeks or minutes as needed
+    if most_common_diff >= pd.Timedelta('1D'):
+        # Convert to days if the most common difference is 1 day or more
+        most_common_diff = most_common_diff.days
+        time_unit = 'D'
+    elif most_common_diff >= pd.Timedelta('1H'):
+        # Convert to hours if the most common difference is 1 hour or more
+        most_common_diff = most_common_diff.seconds // 3600
+        time_unit = 'H'
+    elif most_common_diff >= pd.Timedelta('1T'):
+        # Convert to minutes if the most common difference is 1 minute or more
+        most_common_diff = most_common_diff.seconds // 60
+        time_unit = 'T'
+    else:
+        # Otherwise, use seconds
+        most_common_diff = most_common_diff.seconds
+        time_unit = 'S'
+
+    # Calculate the maximum future date to accommodate the maximum possible forecast range
+    max_date = df.index.max() + pd.Timedelta(most_common_diff * 20, unit=time_unit)
+
+    # Convert the most common difference back to Timedelta for pd.date_range
+    most_common_diff = pd.Timedelta(most_common_diff, unit=time_unit)
+
+    # Create new dates
+    new_dates = pd.date_range(start=df.index.max() + most_common_diff, end=max_date, freq=most_common_diff)
+
+    # Create a new DataFrame with these dates
+    df_new = pd.DataFrame(index=new_dates, columns=df.columns)
+
+    # Concatenate the old DataFrame with the new one
+    df = pd.concat([df, df_new])
 
     if hover_or_click == 'Hover mode':
         fig = go.Figure(data=go.Scatter(x=x,
@@ -109,7 +147,9 @@ def main_plot(data, asset_name, max_length, hover_or_click):
 
     fig.update_traces(line_color='white')
     fig.update_layout(xaxis_title="Date",
-                      yaxis_title="Price")
+                      yaxis_title="Price",
+                      # Add range to xaxis to keep it stable
+                      xaxis_range=[df.index.min(), max_date])
     fig.update_layout(title_text=asset_name,
                       uirevision="Don't change")
 
@@ -132,15 +172,6 @@ def generate_app(cluster):
                'width': '50%'}
     )
     hover_or_click = dcc.RadioItems(['Hover mode', 'Click mode'], 'Hover mode', id="hover_or_click")
-
-    # drop_down_models = dcc.Dropdown(
-    #             model_names,
-    #             multi=False,
-    #             value=asset_names[0],
-    #             id="assets_dropdown",
-    #             style={'color': 'black',
-    #                    'width': '50%'}
-    #             )
 
     main_graphs = dbc.Card(
         [
@@ -268,7 +299,6 @@ def generate_app(cluster):
                             aux_df.loc[x] = np.zeros(num_of_prediction_days)
                         # Creates an array of indecies from selected day to N-future days
                         range_of_prediction_illlia = aux_df.loc[first_predicted_day:].index[:num_of_prediction_days]
-
                         try:
                             predictions_row = val.loc[selected_day]
                             prediction_for_plot = predictions_row.to_frame()
@@ -279,20 +309,8 @@ def generate_app(cluster):
                         # adding actual price as first day of prediction to connect prediction lines with main line
                         prediction_for_plot.loc[selected_day] = ap[asset_name].loc[selected_day][0]
                         prediction_for_plot = prediction_for_plot.sort_index()
-                        # Leaves empty data for real price but in future
-
-
-                        ld = single_asset_price.index[-1] + dt.timedelta(days=(int(ip[:-1]) * num_of_prediction_days))
-                        add_days = pd.date_range(single_asset_price.index[-1], ld, freq='D')[1:]
-                        for n in add_days:
-                            single_asset_price.loc[n] = None
-
                         df_plot = pd.merge(single_asset_price, prediction_for_plot, left_index=True, right_index=True)
                         df_plot.columns = [asset_name + '_actual', asset_name + '_predicted']
-
-                        # x = prediction_for_plot.index
-                        # y = prediction_for_plot.iloc[:, 0]
-
                         x = df_plot.index
                         y = df_plot[asset_name + '_predicted']
 
@@ -343,7 +361,7 @@ def generate_app(cluster):
                         # Prediction table copy
                         aux_df = val.copy()
                         # Real business n-future day
-                        if '-USD' in asset_name:
+                        if '-USD' in name:
                             is_crypto = True
                         else:
                             is_crypto = False
@@ -377,16 +395,8 @@ def generate_app(cluster):
                         # adding actual price as first day of prediction to connect prediction lines with main line
                         prediction_for_plot.loc[selected_day] = ap[asset_name].loc[selected_day][0]
                         prediction_for_plot = prediction_for_plot.sort_index()
-                        ld = single_asset_price.index[-1] + dt.timedelta(days=(int(ip[:-1]) * num_of_prediction_days))
-                        add_days = pd.date_range(single_asset_price.index[-1], ld, freq='D')[1:]
-                        for n in add_days:
-                            single_asset_price.loc[n] = None
                         df_plot = pd.merge(single_asset_price, prediction_for_plot, left_index=True, right_index=True)
                         df_plot.columns = [asset_name + '_actual', asset_name + '_predicted']
-
-                        # x = prediction_for_plot.index
-                        # y = prediction_for_plot.iloc[:, 0]
-
                         x = df_plot.index
                         y = df_plot[asset_name + '_predicted']
 
