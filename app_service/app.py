@@ -12,6 +12,14 @@ from app_service.input_data_maker import generate_data
 import numpy as np
 import datetime as dt
 from dash.exceptions import PreventUpdate
+from flask import Flask
+import logging
+
+app = Flask(__name__)
+
+log = logging.getLogger('werkzeug')
+log.disabled = True
+# other application initialization logic...
 
 
 def main_plot_formatting(fig):

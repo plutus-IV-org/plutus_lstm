@@ -15,7 +15,7 @@ log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
 
-testing = False
+testing = True
 
 if testing == True:
     df = pd.read_excel(r'inputs/init_test.xlsx')

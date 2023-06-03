@@ -194,7 +194,7 @@ class InitiateResearch:
             _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
 
             self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future, self.interval,
-                                                   self.mean_directional_accuracy.dta, self.source,
+                                                   self.mean_directional_accuracy, self.source,
                                                    self.unique_name,self.mod)
 
             _dataframe_to_png(self.sum_frame1, "table_training_details")

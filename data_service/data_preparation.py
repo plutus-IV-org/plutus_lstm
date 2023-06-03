@@ -1,5 +1,6 @@
 import pandas_ta as ta
 import pandas as pd
+import requests
 from data_service.vendors_data import yahoo_downloader as yd
 from data_service.vendors_data import binance_downloader as bd
 from data_service.vendors_data.av_downloader import AVDownloader
@@ -79,6 +80,16 @@ class DataPreparation:
             df = close_prices.copy()
             df.dropna(inplace=True)
             return df
+        def crypto_sentiment_daily():
+            r = requests.get('https://api.alternative.me/fng/?limit=0')
+            df = pd.DataFrame(r.json()['data'])
+            df.value = df.value.astype(int)
+            df.timestamp = pd.to_datetime(df.timestamp, unit='s')
+            df.set_index('timestamp', inplace=True)
+            df = df[::-1][['value']]
+            df.rename(columns ={'value':'Crypto_Sentiment'},inplace = True)
+            return df
+
 
         def indicators(df, input_length):
             """
@@ -180,7 +191,6 @@ class DataPreparation:
         elif self.type == 'Sentiment':
             df_close = close(df).tz_localize(None)
             df_senti = 100 + senti(self.asset).tz_localize(None)
-
             df = pd.concat([df_close, df_senti], axis=1).dropna().copy()
         elif self.type == 'Fundamentals':
             df = fundamentals(df)
@@ -196,6 +206,9 @@ class DataPreparation:
             except:
                 q7 = pd.DataFrame()
                 print('Sentiment dictionary doesnt contain the asset')
+            if self.asset[-4:] == '-USD':
+                q8 = crypto_sentiment_daily()
+                q1 = q1.merge(q8, how= 'left', left_index = True, right_index = True)
             df = pd.concat([q1, q2, q3, q4, q5, q6, q7], axis=1)
             df = df.loc[:, ~df.columns.duplicated()]
 
