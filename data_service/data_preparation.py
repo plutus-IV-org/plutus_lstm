@@ -7,14 +7,14 @@ from data_service.vendors_data.av_downloader import AVDownloader
 from data_service.vendors_data.macro_downloader import mc_downloader as mc
 from data_service.vendors_data.sentiment_downloader import senti
 
+
 class DataPreparation:
-    def __init__(self, asset, df_type ,source, interval, input_length):
+    def __init__(self, asset, df_type, source, interval, input_length):
         self.asset = asset
         self.type = df_type
         self.past = input_length
         self.source = source
         self.interval = interval
-
 
     def _download_prices(self):
         if self.source == 'Yahoo' or self.source == 'Y':
@@ -80,6 +80,7 @@ class DataPreparation:
             df = close_prices.copy()
             df.dropna(inplace=True)
             return df
+
         def crypto_sentiment_daily():
             r = requests.get('https://api.alternative.me/fng/?limit=0')
             df = pd.DataFrame(r.json()['data'])
@@ -87,9 +88,20 @@ class DataPreparation:
             df.timestamp = pd.to_datetime(df.timestamp, unit='s')
             df.set_index('timestamp', inplace=True)
             df = df[::-1][['value']]
-            df.rename(columns ={'value':'Crypto_Sentiment'},inplace = True)
+            df.rename(columns={'value': 'Crypto_Sentiment daily'}, inplace=True)
             return df
 
+        def ranked_crypto_sentiment_daily():
+            r = requests.get('https://api.alternative.me/fng/?limit=0')
+            df = pd.DataFrame(r.json()['data'])
+            df.value = df.value.astype(int)
+            df.timestamp = pd.to_datetime(df.timestamp, unit='s')
+            df.set_index('timestamp', inplace=True)
+            df = df[::-1][['value']]
+            df.rename(columns={'value': 'Crypto_Sentiment daily - ranked'}, inplace=True)
+            df = df.where(df <= 50, 2)
+            df = df.where(df == 2, 1)
+            return df
 
         def indicators(df, input_length):
             """
@@ -208,7 +220,9 @@ class DataPreparation:
                 print('Sentiment dictionary doesnt contain the asset')
             if self.asset[-4:] == '-USD':
                 q8 = crypto_sentiment_daily()
-                q1 = q1.merge(q8, how= 'left', left_index = True, right_index = True)
+                q9 = ranked_crypto_sentiment_daily()
+                q1 = q1.merge(q8, how='left', left_index=True, right_index=True)
+                q1 = q1.merge(q9, how='left', left_index=True, right_index=True)
             df = pd.concat([q1, q2, q3, q4, q5, q6, q7], axis=1)
             df = df.loc[:, ~df.columns.duplicated()]
 
@@ -216,4 +230,3 @@ class DataPreparation:
         df.insert(0, 'Close', first_column)
 
         return df
-
