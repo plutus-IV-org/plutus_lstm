@@ -16,12 +16,13 @@ from distutils.dir_util import copy_tree
 import pickle
 from UI.custom_type import ListboxSelection
 import numpy as np
+
 username = os.getlogin()
 
 
 class InitiateResearch:
     def __init__(self, asset: str, df_type: str, past_period: list, future_period: list,
-                 epo: int, testing: bool, source: str, interval: str, custom_layers:bool=False):
+                 epo: int, testing: bool, source: str, interval: str, custom_layers: bool = False):
         """
 
         """
@@ -105,7 +106,7 @@ class InitiateResearch:
         loop_number = 1
         storage = {}
         while loop_number <= self.loops_to_run:
-            loop_number +=1
+            loop_number += 1
             if self.custom_layers == False:
                 self.research_results = _run_training(self.trainX, self.trainY, self.asset,
                                                       self.type, self.past, self.future, self.testing)
@@ -117,12 +118,13 @@ class InitiateResearch:
 
             epochs_test_collector = {}
 
-            for x in [1, 2, 4]:
+            for x in [1]:
 
                 history, predicted_test_x, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
                                                                 self.research_results,
                                                                 self.trainX, self.trainY, self.testX, self.testY,
                                                                 epo=int(self.epo / x))
+                self.epo = len(history.history['loss'])
                 yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
                                              self.testY).reshape(-1, 1)
                 actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
@@ -160,11 +162,11 @@ class InitiateResearch:
                 sum_frame1.loc['Name'] = unique_name
 
                 collected_data = {'history': history, 'predicted_test_x': predicted_test_x, 'mod': mod,
-                                            'yhat': yhat,
-                                            'actual': actual, 'RMSE': RMSE, 'MAPE': MAPE, 'R': R, 'sf': sf,
-                                            'sum_frame': sum_frame,
-                                            'sum_frame1': sum_frame1, 'sum_frame2': sum_frame2, 'dta': dta,
-                                            'unique_name': unique_name, 'epo_div_x': int(self.epo / x)}
+                                  'yhat': yhat,
+                                  'actual': actual, 'RMSE': RMSE, 'MAPE': MAPE, 'R': R, 'sf': sf,
+                                  'sum_frame': sum_frame,
+                                  'sum_frame1': sum_frame1, 'sum_frame2': sum_frame2, 'dta': dta,
+                                  'unique_name': unique_name, 'epo_div_x': int(self.epo / x)}
                 epochs_test_collector[x] = collected_data.copy()
             # Find the best test result based on the highest directional total accuracy (dta)
             best_test = max(epochs_test_collector, key=lambda x: epochs_test_collector[x]['dta'])
@@ -193,9 +195,10 @@ class InitiateResearch:
             _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
             _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
 
-            self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future, self.interval,
+            self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future,
+                                                   self.interval,
                                                    self.mean_directional_accuracy, self.source,
-                                                   self.unique_name,self.mod)
+                                                   self.unique_name, self.mod)
 
             _dataframe_to_png(self.sum_frame1, "table_training_details")
 
@@ -203,7 +206,8 @@ class InitiateResearch:
 
             _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
 
-            self.general_model_table.to_csv(self.raw_model_path[:-7] + "general_model_table.csv", index=False, header=False)
+            self.general_model_table.to_csv(self.raw_model_path[:-7] + "general_model_table.csv", index=False,
+                                            header=False)
 
             old_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'picture_vault'
             new_abs_path = self.raw_model_path[:-7]
@@ -216,12 +220,11 @@ class InitiateResearch:
                     copy_dict.pop('history')
                     pickle.dump(copy_dict, f)
 
-
             # specify the full path of the pickle file
             filename = os.path.join(new_abs_path, 'lstm_research_dict.pickle')
 
             # save the object as a pickle file in the specified directory
-            save(self,filename)
+            save(self, filename)
 
             def save_model_in_model_vault():
                 old_abs_path = self.raw_model_path[:-7]
@@ -233,13 +236,13 @@ class InitiateResearch:
                 print(self.unique_name + ' has been saved in models vault')
                 return None
 
-            if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing==False:
+            if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing == False:
                 save_model_in_model_vault()
 
             storage[self.unique_name] = vars(self).copy()
             self.epo = best_test * self.epo
             if self.type == 'Custom':
-                _send_discord_message(f'End of {loop_number-1} loop. Unique name is {self.unique_name}.')
+                _send_discord_message(f'End of {loop_number - 1} loop. Unique name is {self.unique_name}.')
         # Find the dictionary with the highest mean_directional_accuracy
         max_accuracy_dict_key = max(storage, key=lambda x: storage[x]["mean_directional_accuracy"])
 

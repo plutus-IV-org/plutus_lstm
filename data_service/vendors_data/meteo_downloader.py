@@ -30,10 +30,12 @@ def get_daily_meteo(most_dense: bool = True) -> pd.DataFrame:
 
     if most_dense:
         # These are the latitude, longitude and altitude for Vancouver, BC
-        vanc = Point(49.2497, -123.1193, 70), 'Vancouver'
-        # And an arbitrary point "Far from Vancouver"
-        citi2 = Point(48.2497, -122.1193, 70), 'Far from Vancouver'
-        cities_cordinates_lst = [vanc, citi2]
+        vanc = Point(49.2497, -123.1193, 0), 'Vancouver'
+        pho = Point(33.46076014614866, -112.0869992615002), 'Phoenix'
+        los_ang = Point(34.04849688640299, -118.25008238877551), 'Los Angeles'
+        hou = Point(29.88064262016017, -95.92717225525821), 'Houston'
+        chi = Point(41.89034725724475, -87.63206686339016), 'Chicago'
+        cities_cordinates_lst = [vanc, pho, los_ang, hou, chi]
     else:
         raise Exception('Only default cities allowed so far.')
 
@@ -46,7 +48,7 @@ def get_daily_meteo(most_dense: bool = True) -> pd.DataFrame:
         # The fetch function fetches the data from Meteostat and
         # the indexer at the end is used to filter only the 'tavg' (average temperature) column
         data = Daily(citi[0], start, end)
-        data = data.fetch()[['tavg']]
+        data = data.fetch()[['tavg']] + 100
 
         # Rename the column to include the city name
         city_name = citi[1]
@@ -59,5 +61,3 @@ def get_daily_meteo(most_dense: bool = True) -> pd.DataFrame:
         full_df = pd.concat([full_df, data], axis=1)
 
     return full_df
-
-

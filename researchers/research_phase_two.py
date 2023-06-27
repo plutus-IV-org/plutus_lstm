@@ -1,27 +1,33 @@
-import platform
-import numpy as np
+
+from tensorflow.keras.callbacks import Callback
 import pandas as pd
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.layers import LSTM, Dense, Dropout
-import os
+from keras.callbacks import EarlyStopping
+
 import tensorflow as tf
 import keras
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion
 from datetime import datetime
+
 plt.style.use('ggplot')
 import warnings
+
 warnings.simplefilter(action='ignore', category=pd.errors.PerformanceWarning)
 pd.options.mode.chained_assignment = None
-#mod = Sequential()
 
-def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX, testY, epo=500):
+
+# mod = Sequential()
+
+
+def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, testY, epo=500):
     try:
         best_model = table.iloc[table['loss'].argmin(), :]
     except Exception:
         best_model = table
-    if testing == False and type(table)!=dict:
+    if testing == False and type(table) != dict:
         best_model_df = pd.DataFrame(best_model)
         best_model_df.columns = [datetime.now()]
         best_model_df = best_model_df.T
@@ -29,14 +35,22 @@ def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX,
         slash = _slash_conversion()
         _dir = _ROOT_PATH()
         slash = _slash_conversion()
-        best_model_df.to_csv(_dir + slash + 'vaults' + slash +'data_vault' + slash+'best_models_register.csv', mode='a', index=True, header=False)
+        best_model_df.to_csv(_dir + slash + 'vaults' + slash + 'data_vault' + slash + 'best_models_register.csv',
+                             mode='a', index=True, header=False)
     else:
         pass
 
     mod = Sequential()
     epo = epo
+
+    class CustomEarlyStopping(Callback):
+        def on_epoch_end(self, epoch, logs={}):
+            if logs.get('loss') <= logs.get('val_loss'):
+                self.model.stop_training = True
+
+    custom_early_stopping = CustomEarlyStopping()
     # Enable eager execution
-    #tf.config.run_functions_eagerly(True)
+    # tf.config.run_functions_eagerly(True)
     def directional_loss(y_true, y_pred):
         # Calculate the difference between consecutive elements in y_true and y_pred
         y_true_cumsum = tf.cumsum(y_true, axis=1)
@@ -72,8 +86,9 @@ def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX,
         mod.add(Dense(trainY.shape[1]))
         opt = keras.optimizers.Adam(lr=best_model['lr'])
         mod.compile(opt, loss='mse', metrics=['accuracy'])
+        earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY])
+                          validation_data=[testX, testY],callbacks=[custom_early_stopping])
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
@@ -84,8 +99,9 @@ def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX,
         mod.add(Dense(trainY.shape[1]))
         opt = keras.optimizers.Adam(lr=best_model['lr'])
         mod.compile(opt, loss='mse', metrics=['accuracy'])
+        earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY])
+                          validation_data=[testX, testY],callbacks=[custom_early_stopping])
 
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) != 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
@@ -100,19 +116,20 @@ def _perfect_model(testing, asset, df_normalised, table , trainX, trainY, testX,
         mod.add(Dense(trainY.shape[1]))
         opt = keras.optimizers.Adam(lr=best_model['lr'])
         mod.compile(opt, loss='mse', metrics=['accuracy'])
+        earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY])
-    prediction =mod.predict(testX).tolist()
-    return history, prediction,mod
+                          validation_data=[testX, testY], callbacks=[custom_early_stopping])
+    prediction = mod.predict(testX).tolist()
+    return history, prediction, mod
 
-def _raw_model_saver(asset,df_type,epo,past,future,interval,dta,source,unique_name,mod):
+
+def _raw_model_saver(asset, df_type, epo, past, future, interval, dta, source, unique_name, mod):
     file_name = asset + '_' + df_type + '_' + str(epo) + '_' + str(past[0]) + '_' + str(
         future[0]) + '_' + interval + '_A_' + str(round(dta, 2)) + '_S_' + source[
                     0] + '_' + unique_name
     folder_path = 'raw_model_vault'
-    _dir= _ROOT_PATH()
+    _dir = _ROOT_PATH()
     slash = _slash_conversion()
-    full_path = _dir  + slash + "vaults" +slash + folder_path + slash + 'LSTM_research_models' + slash + file_name + slash + 'LSTM.h5'
+    full_path = _dir + slash + "vaults" + slash + folder_path + slash + 'LSTM_research_models' + slash + file_name + slash + 'LSTM.h5'
     mod.save(full_path)
     return full_path
-

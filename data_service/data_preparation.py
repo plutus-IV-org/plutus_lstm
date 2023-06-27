@@ -6,6 +6,7 @@ from data_service.vendors_data import binance_downloader as bd
 from data_service.vendors_data.av_downloader import AVDownloader
 from data_service.vendors_data.macro_downloader import mc_downloader as mc
 from data_service.vendors_data.sentiment_downloader import senti
+from data_service.vendors_data.meteo_downloader import get_daily_meteo
 
 
 class DataPreparation:
@@ -172,6 +173,9 @@ class DataPreparation:
                 raise Exception('For macro data use only 1d or 1wk interval.')
             return df
 
+        def meteo():
+            return get_daily_meteo()
+
         def fundamentals(asset):
             """"
             bps = pd.read_pickle('bps800').loc['2011-01-01':, asset]
@@ -223,6 +227,9 @@ class DataPreparation:
                 q9 = ranked_crypto_sentiment_daily()
                 q1 = q1.merge(q8, how='left', left_index=True, right_index=True)
                 q1 = q1.merge(q9, how='left', left_index=True, right_index=True)
+            q10 = meteo()
+            q1 = q1.merge(q10, how='left', left_index=True, right_index=True)
+
             df = pd.concat([q1, q2, q3, q4, q5, q6, q7], axis=1)
             df = df.loc[:, ~df.columns.duplicated()]
 
