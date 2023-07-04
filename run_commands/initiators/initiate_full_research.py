@@ -8,6 +8,7 @@ from messenger_commands.messenger_commands import _visualize_loss_results, _visu
     _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results
 from utilities.metrics import _rmse, _mape, _r, _gradient_accuracy_test, _directional_accuracy
 from utilities.unique_name_generator import name_generator
+from utilities.target_creation import apply_target_to_close_price
 from UI.custom_layers import CustomLayerUI
 import pandas as pd
 from utilities.service_functions import _slash_conversion
@@ -22,10 +23,9 @@ username = os.getlogin()
 
 class InitiateResearch:
     def __init__(self, asset: str, df_type: str, past_period: list, future_period: list,
-                 epo: int, testing: bool, source: str, interval: str, custom_layers: bool = False):
-        """
+                 epo: int, testing: bool, source: str, interval: str, custom_layers: bool = False,
+                 directional_orientation: bool = False):
 
-        """
         self.asset = asset
         self.type = df_type
         self.past = past_period
@@ -38,6 +38,7 @@ class InitiateResearch:
         self.root_path = _ROOT_PATH()
         self.loops_to_run = 1
         self.custom_layers = custom_layers
+        self.directional_orientation = directional_orientation
 
     def _initialize_training(self):
 
@@ -79,20 +80,22 @@ class InitiateResearch:
             listbox_selector = ListboxSelection(allowed_indicators)
             selected_items, times_to_run = listbox_selector.get_selected_items()
             _send_discord_message(
-                f'Custom type has been identified. Selected indictiors are {selected_items}. LSTM research will run {times_to_run} times.')
+                f'Custom type has been identified. Selected indicators are {selected_items}.'
+                f' LSTM research will run {times_to_run} times.')
             self.loops_to_run = int(times_to_run)
             df = df[selected_items]
             df = df.dropna()
             if len(df) < 1500:
                 raise Exception('Too short selected data')
-        if self.custom_layers == True:
+        if self.custom_layers:
             custom_layer_ui = CustomLayerUI()
             custom_layer_ui.show()
-
+        if self.directional_orientation and 'Close' in df.columns:
+            df = apply_target_to_close_price(df,self.future)
         df = df.dropna()
         self.data_table = df.copy()
         # Normalisation
-        normalised_data = _data_normalisation(df)
+        normalised_data = _data_normalisation(df, self.directional_orientation)
         self.data_table_normalized = normalised_data.copy()
         distribution_type = _distribution_type(df)
 
@@ -102,14 +105,16 @@ class InitiateResearch:
         for p_d in self.past:
             for f_d in self.future:
                 # Split and fractionating based on dc zscore
-                self.trainX, self.trainY, self.testX, self.testY = _split_data(normalised_data, f_d, p_d)
+                self.trainX, self.trainY, self.testX, self.testY = _split_data(normalised_data, f_d, p_d,
+                                                                               is_targeted=self.directional_orientation)
         loop_number = 1
         storage = {}
         while loop_number <= self.loops_to_run:
             loop_number += 1
-            if self.custom_layers == False:
+            if not self.custom_layers:
                 self.research_results = _run_training(self.trainX, self.trainY, self.asset,
-                                                      self.type, self.past, self.future, self.testing)
+                                                      self.type, self.past, self.future, self.testing,
+                                                      is_targeted=self.directional_orientation)
 
                 _send_discord_message('1st phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
             else:
@@ -123,12 +128,13 @@ class InitiateResearch:
                 history, predicted_test_x, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
                                                                 self.research_results,
                                                                 self.trainX, self.trainY, self.testX, self.testY,
-                                                                epo=int(self.epo / x))
+                                                                epo=int(self.epo / x),
+                                                                is_targeted=self.directional_orientation)
                 self.epo = len(history.history['loss'])
                 yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
-                                             self.testY).reshape(-1, 1)
+                                             self.testY, is_targeted= self.directional_orientation).reshape(-1, 1)
                 actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
-                                               self.testY).reshape(-1, 1)
+                                               self.testY, is_targeted= self.directional_orientation).reshape(-1, 1)
 
                 # Metrics
                 RMSE = _rmse(yhat, actual)

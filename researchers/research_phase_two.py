@@ -1,4 +1,3 @@
-
 from tensorflow.keras.callbacks import Callback
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -22,7 +21,8 @@ pd.options.mode.chained_assignment = None
 # mod = Sequential()
 
 
-def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, testY, epo=500):
+def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, testY, epo=500,
+                   is_targeted: bool = False):
     try:
         best_model = table.iloc[table['loss'].argmin(), :]
     except Exception:
@@ -49,6 +49,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
                 self.model.stop_training = True
 
     custom_early_stopping = CustomEarlyStopping()
+
     # Enable eager execution
     # tf.config.run_functions_eagerly(True)
     def directional_loss(y_true, y_pred):
@@ -83,12 +84,17 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         mod.add(LSTM(int(best_model['first_lstm_layer']), activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
         # mod.add(Dropout(best_model['dropout']))
-        mod.add(Dense(trainY.shape[1]))
-        opt = keras.optimizers.Adam(lr=best_model['lr'])
-        mod.compile(opt, loss='mse', metrics=['accuracy'])
+        if is_targeted:
+            mod.add(Dense(trainY.shape[1], activation='sigmoid'))
+            opt = keras.optimizers.Adam(lr=best_model['lr'])
+            mod.compile(opt, loss='binary_crossentropy', metrics=['accuracy'])
+        else:
+            mod.add(Dense(trainY.shape[1]))
+            opt = keras.optimizers.Adam(lr=best_model['lr'])
+            mod.compile(opt, loss='mse', metrics=['accuracy'])
         earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY],callbacks=[custom_early_stopping])
+                          validation_data=[testX, testY])
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
@@ -96,12 +102,17 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         mod.add(LSTM(int(best_model['second_lstm_layer']), activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
         mod.add(Dropout(best_model['dropout']))
-        mod.add(Dense(trainY.shape[1]))
-        opt = keras.optimizers.Adam(lr=best_model['lr'])
-        mod.compile(opt, loss='mse', metrics=['accuracy'])
+        if is_targeted:
+            mod.add(Dense(trainY.shape[1], activation='sigmoid'))
+            opt = keras.optimizers.Adam(lr=best_model['lr'])
+            mod.compile(opt, loss='binary_crossentropy', metrics=['accuracy'])
+        else:
+            mod.add(Dense(trainY.shape[1]))
+            opt = keras.optimizers.Adam(lr=best_model['lr'])
+            mod.compile(opt, loss='mse', metrics=['accuracy'])
         earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY],callbacks=[custom_early_stopping])
+                          validation_data=[testX, testY])
 
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) != 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
@@ -113,20 +124,31 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         mod.add(LSTM(int(best_model['third_lstm_layer']), activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
         mod.add(Dropout(best_model['dropout']))
-        mod.add(Dense(trainY.shape[1]))
-        opt = keras.optimizers.Adam(lr=best_model['lr'])
-        mod.compile(opt, loss='mse', metrics=['accuracy'])
+        if is_targeted:
+            mod.add(Dense(trainY.shape[1], activation='sigmoid'))
+            opt = keras.optimizers.Adam(lr=best_model['lr'])
+            mod.compile(opt, loss='binary_crossentropy', metrics=['accuracy'])
+        else:
+            mod.add(Dense(trainY.shape[1]))
+            opt = keras.optimizers.Adam(lr=best_model['lr'])
+            mod.compile(opt, loss='mse', metrics=['accuracy'])
         earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY], callbacks=[custom_early_stopping])
+                          validation_data=[testX, testY])
     prediction = mod.predict(testX).tolist()
     return history, prediction, mod
 
 
-def _raw_model_saver(asset, df_type, epo, past, future, interval, dta, source, unique_name, mod):
-    file_name = asset + '_' + df_type + '_' + str(epo) + '_' + str(past[0]) + '_' + str(
-        future[0]) + '_' + interval + '_A_' + str(round(dta, 2)) + '_S_' + source[
-                    0] + '_' + unique_name
+def _raw_model_saver(asset, df_type, epo, past, future, interval, dta, source, unique_name, mod,
+                     is_targeted: bool = False):
+    if is_targeted:
+        file_name = asset + '_' + df_type + '_' + str(epo) + '_' + str(past[0]) + '_' + str(
+            future[0]) + '_' + interval + '_A_' + str(round(dta, 2)) + '_S_' + source[
+                        0] + '_' + unique_name + '_T'
+    else:
+        file_name = asset + '_' + df_type + '_' + str(epo) + '_' + str(past[0]) + '_' + str(
+            future[0]) + '_' + interval + '_A_' + str(round(dta, 2)) + '_S_' + source[
+                        0] + '_' + unique_name
     folder_path = 'raw_model_vault'
     _dir = _ROOT_PATH()
     slash = _slash_conversion()
