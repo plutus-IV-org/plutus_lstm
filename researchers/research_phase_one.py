@@ -93,7 +93,7 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='binary_crossentropy',
+                              loss='mse',
                               metrics=['accuracy'])
             else:
                 model.add(Dense(trainY.shape[1]))
@@ -159,7 +159,7 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='binary_crossentropy',
+                              loss='mse',
                               metrics=['accuracy'])
             else:
                 model.add(Dense(trainY.shape[1]))
@@ -232,7 +232,7 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='binary_crossentropy',
+                              loss='mse',
                               metrics=['accuracy'])
             else:
                 model.add(Dense(trainY.shape[1]))

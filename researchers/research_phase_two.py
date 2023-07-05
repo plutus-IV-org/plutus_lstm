@@ -87,7 +87,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='binary_crossentropy', metrics=['accuracy'])
+            mod.compile(opt, loss='mse', metrics=['accuracy'])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
@@ -105,7 +105,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='binary_crossentropy', metrics=['accuracy'])
+            mod.compile(opt, loss='mse', metrics=['accuracy'])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
@@ -127,7 +127,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='binary_crossentropy', metrics=['accuracy'])
+            mod.compile(opt, loss='mse', metrics=['accuracy'])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])

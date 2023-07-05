@@ -90,8 +90,8 @@ class InitiateResearch:
         if self.custom_layers:
             custom_layer_ui = CustomLayerUI()
             custom_layer_ui.show()
-        if self.directional_orientation and 'Close' in df.columns:
-            df = apply_target_to_close_price(df,self.future)
+        # if self.directional_orientation and 'Close' in df.columns:
+        #     df = apply_target_to_close_price(df,self.future)
         df = df.dropna()
         self.data_table = df.copy()
         # Normalisation
@@ -132,9 +132,9 @@ class InitiateResearch:
                                                                 is_targeted=self.directional_orientation)
                 self.epo = len(history.history['loss'])
                 yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
-                                             self.testY, is_targeted= self.directional_orientation).reshape(-1, 1)
+                                             self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
                 actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
-                                               self.testY, is_targeted= self.directional_orientation).reshape(-1, 1)
+                                               self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
 
                 # Metrics
                 RMSE = _rmse(yhat, actual)
@@ -158,7 +158,7 @@ class InitiateResearch:
                 sum_frame1 = pd.concat([best_model, sf])
                 sum_frame1 = sum_frame1.to_frame()
 
-                sum_frame2 = _directional_accuracy(actual, yhat, best_model)
+                sum_frame2 = _directional_accuracy(actual, yhat, best_model, is_targeted= self.directional_orientation)
                 sum_frame2.index = fd_index
                 dta = sum_frame2["Directional accuracy total"].mean()
                 slash = _slash_conversion()
