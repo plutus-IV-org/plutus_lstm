@@ -47,7 +47,6 @@ def data_preparation(cluster:str):
         data = dp._download_prices()
         if b[1]== "Custom":
             lstm_research_dict_path = path + sl + a + sl + 'lstm_research_dict.pickle'
-            path + sl + a + sl + 'lstm_research_dict.pickle'
             with open(lstm_research_dict_path, "rb") as f:
                 loaded_dict = pickle.load(f)
             custom_indicators = loaded_dict['data_table'].columns.tolist()

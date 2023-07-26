@@ -24,7 +24,7 @@ pd.options.mode.chained_assignment = None
 def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, testY, epo=500,
                    is_targeted: bool = False):
     try:
-        best_model = table.iloc[table['loss'].argmin(), :]
+        best_model = table.iloc[table['accuracy'].argmax(), :]
     except Exception:
         best_model = table
     if testing == False and type(table) != dict:
@@ -87,11 +87,11 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='mse', metrics=['accuracy'])
+            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='mse', metrics=['accuracy'])
+            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
         earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
                           validation_data=[testX, testY])
@@ -105,11 +105,11 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='mse', metrics=['accuracy'])
+            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='mse', metrics=['accuracy'])
+            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
         earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
                           validation_data=[testX, testY])
@@ -127,11 +127,11 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='mse', metrics=['accuracy'])
+            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss='mse', metrics=['accuracy'])
+            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
         earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
                           validation_data=[testX, testY])

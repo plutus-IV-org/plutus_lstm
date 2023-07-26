@@ -1,4 +1,5 @@
 from tensorflow.keras.metrics import RootMeanSquaredError, mean_absolute_percentage_error
+from utilities.directiona_accuracy_utililities import weights
 import numpy as np
 import pandas as pd
 
@@ -91,17 +92,41 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
     if is_targeted:
         diff = actual_df + predicted_df
         combined_df = diff.copy()
-        def compute_dma(combined_df):
-            combined_df[diff==0] = 0
-            combined_df[abs(diff)==2] = 1
-            combined_df[abs(diff)==1] = np.nan
-            return combined_df.mean()
-        total_accuracy = compute_dma(combined_df)
-        accuracy_6_months = compute_dma(combined_df.tail(126))
-        accuracy_1_year = compute_dma(combined_df.tail(252))
-        accuracy_6_months = combined_df.tail(126).sum() / len(combined_df.tail(126))
-        accuracy_1_year = combined_df.tail(252).sum() / len(combined_df.tail(252))
-        q=1
+
+        def compute_dma(combined_df: pd.DataFrame):
+            combined_df[diff == 0] = 0
+            combined_df[abs(diff) == 2] = 1
+            combined_df[abs(diff) == 1] = np.nan
+            trades_coverage_array = (~np.isnan(combined_df)).astype(int).mean()
+            return combined_df.mean(), trades_coverage_array
+
+        total_accuracy, total_cov = compute_dma(combined_df.copy())
+        accuracy_6_months, six_month_cov = compute_dma(combined_df.tail(126).copy())
+        accuracy_1_year, one_year_cov = compute_dma(combined_df.tail(252).copy())
+
+        long_accuracy = diff.copy()
+        long_accuracy[diff == 0] = 0
+        long_accuracy[diff == 2] = 1
+        long_accuracy[abs(diff) == 1] = np.nan
+        long_accuracy[diff == -2] = np.nan
+        long_cov = (~np.isnan(long_accuracy)).astype(int).mean()
+        long_accuracy = long_accuracy.mean()
+
+        short_accuracy = diff.copy()
+        short_accuracy[diff == 0] = 0
+        short_accuracy[diff == -2] = 1
+        short_accuracy[abs(diff) == 1] = np.nan
+        short_accuracy[diff == 2] = np.nan
+        short_cov = (~np.isnan(short_accuracy)).astype(int).mean()
+        short_accuracy = short_accuracy.mean()
+
+        result_df = pd.concat([total_accuracy, accuracy_6_months, accuracy_1_year, long_accuracy, short_accuracy],
+                              axis=1)
+        trades_coverage_df = pd.concat([total_cov, six_month_cov, one_year_cov, long_cov, short_cov],
+                                       axis=1)
+        result_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
+        trades_coverage_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
+
 
     else:
         # Creating column labels for dataframes
@@ -146,15 +171,34 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
         accuracy_6_months = combined_df.tail(126).sum() / len(combined_df.tail(126))
         accuracy_1_year = combined_df.tail(252).sum() / len(combined_df.tail(252))
 
+        total_cov = (~np.isnan(combined_df)).astype(int).mean()
+        six_month_cov = (~np.isnan(combined_df.tail(126))).astype(int).mean()
+        one_year_cov = (~np.isnan(combined_df.tail(252))).astype(int).mean()
         # Calculating accuracy for long positions
-        long_accuracy = ((actual_df[predicted_df > 0] + predicted_df[predicted_df > 0]) / 2).mean()
 
+        long_trades = ((actual_df[predicted_df > 0] + predicted_df[predicted_df > 0]) / 2)
+        long_accuracy = long_trades.mean()
+        long_cov = (~np.isnan(long_trades)).astype(int).mean()
         # Calculating accuracy for short positions
-        short_accuracy = ((actual_df[predicted_df < 0] + predicted_df[predicted_df < 0]) / 2).mean() * -1
+        short_trades = ((actual_df[predicted_df < 0] + predicted_df[predicted_df < 0]) / 2)
+        short_accuracy = short_trades.mean() * -1
+        short_cov = (~np.isnan(short_trades)).astype(int).mean()
 
     # Creating the resulting DataFrame
     result_df = pd.DataFrame(total_accuracy)
     result_df = pd.concat([result_df, accuracy_6_months, accuracy_1_year, long_accuracy, short_accuracy], axis=1)
+    trades_coverage_df = pd.concat([total_cov, six_month_cov, one_year_cov, long_cov, short_cov],
+                                   axis=1)
     result_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
+    trades_coverage_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
+    return result_df, trades_coverage_df
 
-    return result_df
+
+def directional_accuracy_score(df: pd.DataFrame, coverage: np.array):
+    w = weights()
+    df.replace(np.nan, 0.5, inplace=True)
+    diff_df = df - 0.5
+    multiplied_df = diff_df * coverage.values * w
+    value = multiplied_df.mean().sum() * 2
+    return value
+

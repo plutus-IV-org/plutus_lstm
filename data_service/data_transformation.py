@@ -31,14 +31,16 @@ def _distribution_type(df):
     return dist_type
 
 
-def _data_denormalisation(array, df, n_future, testY, break_point=True, is_targeted: bool = False):
+def _data_denormalisation(array, df, n_future, testY, break_point=True, is_targeted: bool = False,
+                          confidence_lvl: float = 0.5
+                          ):
     """
     1.Deloging the values
     2.Getting initial values to create closes
     """
     if is_targeted:
-        confidence_rate_up = 0.55
-        confidence_rate_down = 0.45
+        confidence_rate_up = 1 - confidence_lvl
+        confidence_rate_down = confidence_lvl
         outcome_table = pd.DataFrame(array.copy())
         outcome_table[outcome_table > confidence_rate_up] = 1
         outcome_table[outcome_table < confidence_rate_down] = -1
@@ -52,7 +54,7 @@ def _data_denormalisation(array, df, n_future, testY, break_point=True, is_targe
             for f in range(len(nat.columns)):
                 nat.iloc[z, f] = np.exp(nat.iloc[z, f])
         array_copy = nat.values
-        if break_point == True:
+        if break_point:
             in_val = df.iloc[-len(testY) - n_future:-n_future]
         else:
             in_val = df.iloc[-len(testY):]
@@ -80,8 +82,8 @@ def _split_data(df: pd.DataFrame, future: int, past: int, break_point=True, is_t
             for x in range(n_past, len(df_training) - n_future + 1):
                 if is_targeted:
                     input_val = df_training.loc[x - n_past:x, :].drop(columns=['Target']).values
-                    output_val = df_training.iloc[x, :]['Target'] - df_training.iloc[x + 1:x + n_future + 1, :][
-                        'Target']
+                    output_val = df_training.iloc[x + 1:x + n_future + 1, :][
+                                     'Target'] - df_training.iloc[x, :]['Target']
                     output_val[output_val > 0] = 1
                     output_val[output_val <= 0] = 0
                 else:
@@ -96,8 +98,8 @@ def _split_data(df: pd.DataFrame, future: int, past: int, break_point=True, is_t
             for x in range(n_past, len(df_training)):
                 if is_targeted:
                     input_val = df_training.loc[x - n_past:x, :].drop(columns=['Target']).values
-                    output_val = df_training.iloc[x, :]['Target'] - df_training.iloc[x + 1:x + n_future + 1, :][
-                        'Target']
+                    output_val = df_training.iloc[x + 1:x + n_future + 1, :][
+                                     'Target'] - df_training.iloc[x, :]['Target']
                     output_val[output_val > 0] = 1
                     output_val[output_val <= 0] = 0
                 else:

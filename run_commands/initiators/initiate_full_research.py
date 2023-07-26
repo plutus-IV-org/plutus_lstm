@@ -3,20 +3,23 @@ from researchers.research_phase_one import _run_training
 from researchers.research_phase_two import _perfect_model, _raw_model_saver
 from messenger_commands.messenger_commands import _send_telegram_msg, _dataframe_to_png, _send_discord_message
 from data_service.data_preparation import DataPreparation
-from data_service.data_transformation import _data_normalisation, _split_data, _distribution_type, _data_denormalisation
+from data_service.data_transformation import _data_normalisation, _split_data, \
+    _distribution_type, _data_denormalisation
 from messenger_commands.messenger_commands import _visualize_loss_results, _visualize_accuracy_results, \
-    _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results
-from utilities.metrics import _rmse, _mape, _r, _gradient_accuracy_test, _directional_accuracy
+    _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results, \
+    _visualize_probability_distribution
+from utilities.metrics import _rmse, _mape, _r, _gradient_accuracy_test, _directional_accuracy, \
+    directional_accuracy_score
 from utilities.unique_name_generator import name_generator
-from utilities.target_creation import apply_target_to_close_price
+from utilities.directiona_accuracy_utililities import confidence_tails
 from UI.custom_layers import CustomLayerUI
+from utilities.use_mean_unitilities import apply_means
 import pandas as pd
 from utilities.service_functions import _slash_conversion
 from PATH_CONFIG import _ROOT_PATH
 from distutils.dir_util import copy_tree
 import pickle
 from UI.custom_type import ListboxSelection
-import numpy as np
 
 username = os.getlogin()
 
@@ -24,7 +27,7 @@ username = os.getlogin()
 class InitiateResearch:
     def __init__(self, asset: str, df_type: str, past_period: list, future_period: list,
                  epo: int, testing: bool, source: str, interval: str, custom_layers: bool = False,
-                 directional_orientation: bool = False):
+                 directional_orientation: bool = False, use_means: bool = False):
 
         self.asset = asset
         self.type = df_type
@@ -39,6 +42,7 @@ class InitiateResearch:
         self.loops_to_run = 1
         self.custom_layers = custom_layers
         self.directional_orientation = directional_orientation
+        self.use_means = use_means
 
     def _initialize_training(self):
 
@@ -90,9 +94,11 @@ class InitiateResearch:
         if self.custom_layers:
             custom_layer_ui = CustomLayerUI()
             custom_layer_ui.show()
-        # if self.directional_orientation and 'Close' in df.columns:
-        #     df = apply_target_to_close_price(df,self.future)
+
+        if self.use_means:
+            df = apply_means(df)
         df = df.dropna()
+
         self.data_table = df.copy()
         # Normalisation
         normalised_data = _data_normalisation(df, self.directional_orientation)
@@ -123,29 +129,42 @@ class InitiateResearch:
 
             epochs_test_collector = {}
 
-            for x in [1]:
-
+            for x in [1, 2, 4]:
                 history, predicted_test_x, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
                                                                 self.research_results,
                                                                 self.trainX, self.trainY, self.testX, self.testY,
                                                                 epo=int(self.epo / x),
                                                                 is_targeted=self.directional_orientation)
-                self.epo = len(history.history['loss'])
-                yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
-                                             self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
+
                 actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
                                                self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
-
+                if self.directional_orientation:
+                    confidence_levels = confidence_tails()
+                    confidence_test_collector = {}
+                    for tail in confidence_levels:
+                        yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
+                                                     self.testY, is_targeted=self.directional_orientation,
+                                                     confidence_lvl=tail).reshape(-1, 1)
+                        summary_table, trades_coverage = _directional_accuracy(actual, yhat, {'future_days': f_d},
+                                                                               is_targeted=self.directional_orientation)
+                        dta_score = directional_accuracy_score(summary_table, trades_coverage)
+                        confidence_test_collector[str(tail)] = dta_score, tail, yhat
+                    confidence_level, results = max(confidence_test_collector.items(), key=lambda item: item[1][0])
+                    yhat = results[2]
+                else:
+                    yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
+                                                 self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
+                    confidence_level = .5
                 # Metrics
                 RMSE = _rmse(yhat, actual)
                 MAPE = _mape(yhat, actual)
                 R = _r(yhat, actual)
 
                 sf = pd.Series({'Root mean squared error': RMSE, 'Mean absolute percentage error': MAPE,
-                                "Linear correlation": R})
+                                "Linear correlation": R, 'Confidence tail': confidence_level})
 
                 # Gradiant accuracy test
-                if self.custom_layers == True:
+                if self.custom_layers:
                     best_model = pd.Series(self.research_results)
                     best_model.loc['future_days'] = self.future[0]
                     best_model.loc['past_days'] = self.past[0]
@@ -158,13 +177,14 @@ class InitiateResearch:
                 sum_frame1 = pd.concat([best_model, sf])
                 sum_frame1 = sum_frame1.to_frame()
 
-                sum_frame2 = _directional_accuracy(actual, yhat, best_model, is_targeted= self.directional_orientation)
+                sum_frame2, trades_coverage = _directional_accuracy(actual, yhat, best_model,
+                                                                    is_targeted=self.directional_orientation)
                 sum_frame2.index = fd_index
-                dta = sum_frame2["Directional accuracy total"].mean()
+                dta = directional_accuracy_score(sum_frame2, trades_coverage)
                 slash = _slash_conversion()
                 unique_name = name_generator()
 
-                sum_frame1.loc['Directional accuracy'] = str(round(dta, 3))
+                sum_frame1.loc['Directional accuracy score'] = str(round(dta, 3))
                 sum_frame1.loc['Name'] = unique_name
 
                 collected_data = {'history': history, 'predicted_test_x': predicted_test_x, 'mod': mod,
@@ -172,7 +192,8 @@ class InitiateResearch:
                                   'actual': actual, 'RMSE': RMSE, 'MAPE': MAPE, 'R': R, 'sf': sf,
                                   'sum_frame': sum_frame,
                                   'sum_frame1': sum_frame1, 'sum_frame2': sum_frame2, 'dta': dta,
-                                  'unique_name': unique_name, 'epo_div_x': int(self.epo / x)}
+                                  'unique_name': unique_name, 'epo_div_x': int(self.epo / x),
+                                  'trades_coverage': trades_coverage, 'confidence tail': confidence_level}
                 epochs_test_collector[x] = collected_data.copy()
             # Find the best test result based on the highest directional total accuracy (dta)
             best_test = max(epochs_test_collector, key=lambda x: epochs_test_collector[x]['dta'])
@@ -194,21 +215,30 @@ class InitiateResearch:
             self.unique_name = epochs_test_collector[best_test]['unique_name']
             self.general_model_table = epochs_test_collector[best_test]['sum_frame1']
             self.epo = epochs_test_collector[best_test]['epo_div_x']
+            self.trades_coverage = epochs_test_collector[best_test]['trades_coverage']
+            self.confidence_tail = epochs_test_collector[best_test]['confidence tail']
 
             _visualize_loss_results(self.history)
             _visualize_accuracy_results(self.history)
             # _visualize_mda_results(self.history)
-            _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
-            _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
+
+            if not self.directional_orientation:
+                _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
+                _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
+            else:
+                _visualize_probability_distribution(pd.DataFrame(self.predicted_test_x))
 
             self.raw_model_path = _raw_model_saver(self.asset, self.type, self.epo, self.past, self.future,
                                                    self.interval,
                                                    self.mean_directional_accuracy, self.source,
-                                                   self.unique_name, self.mod)
+                                                   self.unique_name, self.mod, is_targeted=self.directional_orientation)
 
             _dataframe_to_png(self.sum_frame1, "table_training_details")
 
             _dataframe_to_png(self.sum_frame2, "table_dir_vector")
+
+            if self.directional_orientation:
+                _dataframe_to_png(self.trades_coverage, "trades_coverage")
 
             _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
 
@@ -232,7 +262,7 @@ class InitiateResearch:
             # save the object as a pickle file in the specified directory
             save(self, filename)
 
-            def save_model_in_model_vault():
+            def save_model_in_model_vault(is_targeted: bool = False):
                 old_abs_path = self.raw_model_path[:-7]
                 new_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'model_vault' \
                                + _slash_conversion() + 'LSTM_research_models' + _slash_conversion() + \

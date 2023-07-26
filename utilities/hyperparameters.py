@@ -7,9 +7,9 @@ def _hyperparameters_one_layer():
         'lr': [0.001, 0.0001],
         'first_lstm_layer': [64, 128, 256],
         'batch_size': [32, 64],
-        'epochs': [80],
+        'epochs': [40],
         'optimizer': [Adam],
-        'loss': ['mse'],
+        'loss': ["binary_crossentropy"],
         'activation': [tanh],
         'weight_regulizer': [None]}
 
@@ -20,10 +20,10 @@ def _hyperparameters_two_layers():
         'first_lstm_layer': [64, 128, 256],
         'second_lstm_layer': [64, 128, 256],
         'batch_size': [32, 64],
-        'epochs': [80],
+        'epochs': [40],
         'dropout': [0.0, 0.1],
         'optimizer': [Adam],
-        'loss': ['mse'],
+        'loss': ["binary_crossentropy"],
         'activation': [tanh],
         'weight_regulizer': [None]}
 
@@ -36,10 +36,10 @@ def _hyperparameters_three_layers():
         'second_lstm_layer': [64, 128, 256],
         'third_lstm_layer': [64, 128],
         'batch_size': [32, 64],
-        'epochs': [80],
+        'epochs': [40],
         'dropout': [0.0, 0.1],
         'optimizer': [Adam],
-        'loss': ['mse'],
+        'loss': ["binary_crossentropy"],
         'activation': [tanh],
         'weight_regulizer': [None]}
 

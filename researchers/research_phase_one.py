@@ -1,6 +1,3 @@
-from messenger_commands.messenger_commands import _send_telegram_msg, _send_telegram_photo, _dataframe_to_png, \
-    _send_discord_message
-
 from utilities.service_functions import _slash_conversion
 import platform
 import glob
@@ -11,9 +8,7 @@ import talos
 from talos.utils import lr_normalizer
 from talos import Reporting
 import os
-from tensorflow.keras import backend as K
-import warnings
-import numpy as np
+
 import tensorflow as tf
 import warnings
 
@@ -93,12 +88,12 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='mse',
+                              loss="binary_crossentropy",
                               metrics=['accuracy'])
             else:
                 model.add(Dense(trainY.shape[1]))
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='mse',
+                              loss="binary_crossentropy",
                               metrics=['accuracy'])
             history = model.fit(trainX, trainY,
                                 batch_size=params['batch_size'],
@@ -159,12 +154,12 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='mse',
+                              loss="binary_crossentropy",
                               metrics=['accuracy'])
             else:
                 model.add(Dense(trainY.shape[1]))
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='mse',
+                              loss="binary_crossentropy",
                               metrics=['accuracy'])
             history = model.fit(trainX, trainY,
                                 batch_size=params['batch_size'],
@@ -232,12 +227,12 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='mse',
+                              loss="binary_crossentropy",
                               metrics=['accuracy'])
             else:
                 model.add(Dense(trainY.shape[1]))
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss='mse',
+                              loss="binary_crossentropy",
                               metrics=['accuracy'])
 
             history = model.fit(trainX, trainY,
