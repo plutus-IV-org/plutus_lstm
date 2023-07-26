@@ -15,8 +15,9 @@ from distutils.dir_util import copy_tree
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-
 testing = False
+directional_orientation = True
+use_means = True
 
 if testing == True:
     df = pd.read_excel(r'inputs/init_test.xlsx')
@@ -45,7 +46,8 @@ for x in range(len(df.index)):
     epo = int(df.loc[x, 'EPOCHS'])
     interval = df.loc[x, 'INTERVAL']
 
-    i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval, True)
+    i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval, custom_layers=True,
+                         directional_orientation=directional_orientation, use_means=use_means)
     research_dict = i._initialize_training()
     self_container[research_dict['unique_name']] = research_dict
     """
