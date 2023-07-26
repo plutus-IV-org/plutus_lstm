@@ -4,7 +4,7 @@ import os
 from tensorflow.keras.models import Sequential, load_model
 from data_service.data_preparation import DataPreparation
 from data_service.data_transformation import _data_normalisation, _data_denormalisation, _split_data
-
+from utilities.use_mean_unitilities import apply_means
 pd.options.mode.chained_assignment = None
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion
@@ -51,10 +51,20 @@ def data_preparation(cluster: str):
             lstm_research_dict_path = path + sl + a + sl + 'lstm_research_dict.pickle'
             with open(lstm_research_dict_path, "rb") as f:
                 loaded_dict = pickle.load(f)
-            custom_indicators = loaded_dict['data_table'].columns.tolist()
-            # TODO add apply means
-            data = data[custom_indicators]
-            data = data.dropna()
+
+            if "Weekly_Close" in loaded_dict['data_table'].columns.tolist():
+                custom_indicators = []
+                for col in loaded_dict['data_table'].columns.tolist():
+                    if '_' not in col:
+                        custom_indicators.append(col)
+                data = data[custom_indicators]
+                data = apply_means(data)
+                data = data.dropna()
+            else:
+                custom_indicators = loaded_dict['data_table'].columns.tolist()
+                data = data[custom_indicators]
+                data = data.dropna()
+
             if len(data) < 1500:
                 raise Exception('Too short selected data')
         # data = _download_prices(b[0], 'Close')

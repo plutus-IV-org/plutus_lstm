@@ -14,7 +14,7 @@ from distutils.dir_util import copy_tree
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-testing = True
+testing = False
 directional_orientation = True
 use_means = True
 
