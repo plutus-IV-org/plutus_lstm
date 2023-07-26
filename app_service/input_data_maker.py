@@ -28,7 +28,7 @@ def generate_data(cluster):
                 value = 0
                 dfa = {}
                 for i in keys:
-                    if i.startswith(n) and (i.split('_')+['dummy_ending'])[5]==interval:
+                    if i.startswith(n) and (i.split('_') + ['dummy_ending'])[5] == interval:
                         value += 1
                         dfa[value, prepared_data[i][1].shape[1]] = prepared_data[i][1]
 
@@ -48,9 +48,10 @@ def generate_data(cluster):
                     summed = returnSum(dfa2)
                     dic_sum = summed.dropna() / val
 
-                    prepared_data_keys_list =  list(prepared_data.keys())
+                    prepared_data_keys_list = list(prepared_data.keys())
                     filtered_list = [x for x in prepared_data_keys_list if interval in x]
-                    prepared_data[n + '_average_' + str(t) + '_future_steps_' + interval] = prepared_data[filtered_list[0]][0], dic_sum
+                    prepared_data[n + '_average_' + str(t) + '_future_steps_' + interval] = \
+                        prepared_data[filtered_list[0]][0], dic_sum
                     keys.append(n + '_average_' + str(t) + '_future_steps_' + interval)
 
         for x in keys:
@@ -70,24 +71,34 @@ def generate_data(cluster):
         return asset_prediction_dic, asset_price_dic, asset_names, interval
 
     else:
-        asset_dict= cluster.copy()
+        asset_dict = cluster.copy()
         short_name = asset_dict['asset']
         full_name = asset_dict['raw_model_path'].split('\\')[-2]
         interval = asset_dict['interval']
 
-        predicted_price = asset_dict['yhat'].reshape(int(len(asset_dict['yhat'])/asset_dict['future'][0]),asset_dict['future'][0])
+        predicted_price = asset_dict['yhat'].reshape(int(len(asset_dict['yhat']) / asset_dict['future'][0]),
+                                                     asset_dict['future'][0])
         actual_price = asset_dict['data_table'].tail(len(predicted_price))
         time_index = actual_price.index
 
         # step required to assign properly the time index
         # slicing time_index
-        future_days= int(full_name.split('_')[4])
+        future_days = int(full_name.split('_')[4])
         sliced_time_index = time_index[:-future_days]
         sliced_predicted_price = predicted_price[future_days:]
 
-        predicted_price_df = pd.DataFrame(sliced_predicted_price, index = sliced_time_index )
+        predicted_price_df = pd.DataFrame(sliced_predicted_price, index=sliced_time_index)
+        # in case of target orientation
+        if full_name.split('_')[-1] == 'T':
+            real_price = asset_dict['data_table'].tail(len(predicted_price))[["Close"]]
+            final_frame = pd.DataFrame()
+            for t in range(future_days):
+                final_frame = pd.concat([final_frame, real_price],axis=1)
+            final_frame.dropna(inplace=True)
+            sd = final_frame.std().values[0]
+            predicted_price_df = final_frame.loc[predicted_price_df.index].values + (predicted_price_df * sd)
         # need to add n future days in order to recreate 126xN actual and predicted tables
-        asset_prediction_dic = {full_name:predicted_price_df.tail(126)}
-        asset_price_dic = {short_name:actual_price[['Close']].tail(126+future_days)}
+        asset_prediction_dic = {full_name: predicted_price_df.tail(126)}
+        asset_price_dic = {short_name: actual_price[['Close']].tail(126 + future_days)}
         asset_names = [short_name]
         return asset_prediction_dic, asset_price_dic, asset_names, interval
