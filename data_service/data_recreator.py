@@ -1,10 +1,12 @@
 import datetime as dt
 import pandas as pd
+import numpy as np
 import os
 from tensorflow.keras.models import Sequential, load_model
 from data_service.data_preparation import DataPreparation
 from data_service.data_transformation import _data_normalisation, _data_denormalisation, _split_data
 from utilities.use_mean_unitilities import apply_means
+
 pd.options.mode.chained_assignment = None
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion
@@ -102,6 +104,18 @@ def data_preparation(cluster: str):
             for t in range(f_d):
                 constructed_df = pd.concat([constructed_df, df_prices.loc[df_pred.index, 'Close']], axis=1)
             sd = constructed_df.std().values[0]
+            # In order to make graph prediction lines visible we need to add a
+            # small random value to differentiate targeted predictions.
+            random_adding = np.random.randint(-15, 15, 1)[0]
+            if sd > 100:
+                sd = sd + random_adding
+            elif 100 > sd > 10:
+                sd = sd + random_adding / 10
+            elif 10 > sd > 1:
+                sd = sd + random_adding / 100
+            else:
+                sd = sd + random_adding / 1000
+
             df_pred = constructed_df.loc[df_pred.index].values + (df_pred * sd)
 
         pred_saver[a] = common_table.iloc[-126:], df_pred.iloc[-126:]

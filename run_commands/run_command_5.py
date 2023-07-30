@@ -17,7 +17,7 @@ log.setLevel(logging.ERROR)
 
 testing = False
 directional_orientation = True
-use_means = True
+use_means = False
 
 if testing == True:
     df = pd.read_excel(r'inputs/init_test.xlsx')
