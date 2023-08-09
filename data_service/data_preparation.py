@@ -176,6 +176,9 @@ class DataPreparation:
         def meteo():
             return get_daily_meteo()
 
+        def crypto_benchmark():
+            return bd.downloader('BTC-USD', self.interval)
+
         def fundamentals(asset):
             """"
             bps = pd.read_pickle('bps800').loc['2011-01-01':, asset]
@@ -217,6 +220,7 @@ class DataPreparation:
             q4 = technical(df)
             q5 = indicators(df, self.past)
             q6 = macro(df, self.interval)
+
             try:
                 q7 = 100 + senti(self.asset)
             except:
@@ -225,10 +229,12 @@ class DataPreparation:
             if self.asset[-4:] == '-USD':
                 q8 = crypto_sentiment_daily()
                 q9 = ranked_crypto_sentiment_daily()
+                q10 = crypto_benchmark()[['Close']].rename(columns={'Close' : 'BTC-USD Close'})
                 q1 = q1.merge(q8, how='left', left_index=True, right_index=True)
                 q1 = q1.merge(q9, how='left', left_index=True, right_index=True)
-            q10 = meteo()
-            q1 = q1.merge(q10, how='left', left_index=True, right_index=True)
+                q1 = q1.merge(q10, how='left', left_index=True, right_index=True)
+            q11 = meteo()
+            q1 = q1.merge(q11, how='left', left_index=True, right_index=True)
 
             df = pd.concat([q1, q2, q3, q4, q5, q6, q7], axis=1)
             df = df.loc[:, ~df.columns.duplicated()]

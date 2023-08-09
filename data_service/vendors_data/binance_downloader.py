@@ -1,19 +1,21 @@
 from binance.exceptions import BinanceAPIException
 from time import sleep
 from binance import Client, ThreadedWebsocketManager, ThreadedDepthCacheManager
+
 api_key = "TJFbxUadj3OrleUMNU9VccxmAseDncRoq8ZPxZxBrNjgeYt8AKOQq75GKio6JJ8z"
 api_secret = "VRE0XkDH1hkszXdm5ntYLI19GQE6Eu2dSwRNkqoZZY0sreWBEJLGZGGZWY9RCFRi"
 client = Client(api_key, api_secret)
 import pandas as pd
 import datetime as dt
 
-def downloader(asset,interval):
+
+def downloader(asset, interval):
     # valid intervals: 1m,5m,15m,30m,1h,1d,5d,1wk,1mo
     try:
-        ticker, cur  = asset.split('-')
+        ticker, cur = asset.split('-')
     except:
         raise ValueError('Binance downloader has received non crypto ticker, please amend init file!')
-    symbol = ticker +'USDT'
+    symbol = ticker + 'USDT'
 
     if interval == '1m':
         now = dt.datetime.now().strftime("%d %B, %Y")
@@ -111,7 +113,7 @@ def downloader(asset,interval):
     df = df.set_index('Time')
     df.index = pd.to_datetime(df.index, unit='ms')
     df = df.astype(float)
-    df.dropna(inplace =True)
+    df.dropna(inplace=True)
     raw_data = df.copy()
     print(f'Initial length of downloaded data is {len(raw_data)}')
     min_accept_length = 2000
