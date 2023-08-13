@@ -1,5 +1,6 @@
 import pandas as pd
 from data_service.data_recreator import data_preparation
+from utilities.cluster_common_line import compute_averages
 
 
 def generate_data(cluster):
@@ -13,46 +14,7 @@ def generate_data(cluster):
         for x in prepared_data.keys():
             keys.append(x)
 
-        # Create a set of unique names and intervals
-        names = set(i.split('_')[0] for i in keys)
-        intervals = set(i.split('_')[5] for i in keys)
-
-        def returnSum(myDict):
-            total = 0
-            for value in myDict.values():
-                total += value
-            return total
-
-        for n in names:
-            for interval in intervals:
-                value = 0
-                dfa = {}
-                for i in keys:
-                    if i.startswith(n) and (i.split('_') + ['dummy_ending'])[5] == interval:
-                        value += 1
-                        dfa[value, prepared_data[i][1].shape[1]] = prepared_data[i][1]
-
-                l1 = []
-                for h in dfa.keys():
-                    l1.append(list(h)[1])
-                l2 = set(l1)
-
-                for t in l2:
-                    dfa2 = {}
-                    val = 0
-                    for h in dfa.keys():
-                        if list(h)[1] == t:
-                            val += 1
-                            dfa2[val] = dfa[h]
-
-                    summed = returnSum(dfa2)
-                    dic_sum = summed.dropna() / val
-
-                    prepared_data_keys_list = list(prepared_data.keys())
-                    filtered_list = [x for x in prepared_data_keys_list if interval in x]
-                    prepared_data[n + '_average_' + str(t) + '_future_steps_' + interval] = \
-                        prepared_data[filtered_list[0]][0], dic_sum
-                    keys.append(n + '_average_' + str(t) + '_future_steps_' + interval)
+        keys, prepared_data = compute_averages(keys, prepared_data)
 
         for x in keys:
             asset_name = x.split('_')[0]
@@ -93,7 +55,7 @@ def generate_data(cluster):
             real_price = asset_dict['data_table'].tail(len(predicted_price))[["Close"]]
             final_frame = pd.DataFrame()
             for t in range(future_days):
-                final_frame = pd.concat([final_frame, real_price],axis=1)
+                final_frame = pd.concat([final_frame, real_price], axis=1)
             final_frame.dropna(inplace=True)
             sd = final_frame.std().values[0]
             predicted_price_df = final_frame.loc[predicted_price_df.index].values + (predicted_price_df * sd)

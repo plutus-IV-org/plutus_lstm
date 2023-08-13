@@ -71,7 +71,7 @@ def _gradient_accuracy_test(prediction, actual, best_model):
     return std, lpm0, lpm1, lpm2, fd_index
 
 
-def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = False):
+def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = False, reshape_required: bool = True):
     """
     Calculates the directional accuracy of predicted values compared to actual values.
     Returns a DataFrame with accuracy metrics.
@@ -79,15 +79,19 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
     # Extracting relevant information from best_model
     window_size = int(best_model['future_days'])
 
-    # Preparing the actual DataFrame
-    actual_array = np.reshape(actual, (actual.shape[0],))
-    actual_reshaped = actual_array.reshape(-1, window_size)
-    actual_df = pd.DataFrame(actual_reshaped)
+    if reshape_required:
+        # Preparing the actual DataFrame
+        actual_array = np.reshape(actual, (actual.shape[0],))
+        actual_reshaped = actual_array.reshape(-1, window_size)
+        actual_df = pd.DataFrame(actual_reshaped)
 
-    # Preparing the predicted DataFrame
-    predicted_array = np.reshape(predicted, (predicted.shape[0],))
-    predicted_reshaped = predicted_array.reshape(-1, window_size)
-    predicted_df = pd.DataFrame(predicted_reshaped)
+        # Preparing the predicted DataFrame
+        predicted_array = np.reshape(predicted, (predicted.shape[0],))
+        predicted_reshaped = predicted_array.reshape(-1, window_size)
+        predicted_df = pd.DataFrame(predicted_reshaped)
+    else:
+        actual_df = actual.copy()
+        predicted_df = predicted
 
     if is_targeted:
         diff = actual_df + predicted_df
@@ -120,28 +124,16 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
         short_cov = (~np.isnan(short_accuracy)).astype(int).mean()
         short_accuracy = short_accuracy.mean()
 
-        result_df = pd.concat([total_accuracy, accuracy_6_months, accuracy_1_year, long_accuracy, short_accuracy],
-                              axis=1)
-        trades_coverage_df = pd.concat([total_cov, six_month_cov, one_year_cov, long_cov, short_cov],
-                                       axis=1)
-        result_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
-        trades_coverage_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
-
-
     else:
-        # Creating column labels for dataframes
         columns = actual_df.columns.tolist()
         new_columns = [-1] + columns
 
-        # Shifting values for comparison with day 0
         actual_df[-1] = actual_df[0].shift()
         true_zero_vals = actual_df[-1].copy()
 
-        # Dropping NaN values and reordering columns
         actual_df.dropna(inplace=True)
         actual_df = actual_df[new_columns]
 
-        # Computing the directional accuracy for actual values
         for x in actual_df.index:
             for y in columns:
                 actual_df.loc[x, y] = actual_df.loc[x, y] - actual_df.loc[x, -1]
@@ -149,12 +141,10 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
         actual_df[actual_df > 0] = 1
         actual_df[actual_df < 0] = -1
 
-        # Computing the directional accuracy for predicted values
         predicted_df[-1] = true_zero_vals
         predicted_df.dropna(inplace=True)
         predicted_df = predicted_df[new_columns]
 
-        # Computing the directional accuracy for predicted values
         for x in predicted_df.index:
             for y in columns:
                 predicted_df.loc[x, y] = predicted_df.loc[x, y] - predicted_df.loc[x, -1]
@@ -162,36 +152,31 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
         predicted_df[predicted_df > 0] = 1
         predicted_df[predicted_df < 0] = -1
 
-        # Calculating overall directional accuracy
         combined_df = actual_df + predicted_df
         combined_df[combined_df != 0] = 1
         total_accuracy = combined_df.sum() / len(combined_df)
-
-        # Calculating directional accuracy for different time periods
         accuracy_6_months = combined_df.tail(126).sum() / len(combined_df.tail(126))
         accuracy_1_year = combined_df.tail(252).sum() / len(combined_df.tail(252))
 
         total_cov = (~np.isnan(combined_df)).astype(int).mean()
         six_month_cov = (~np.isnan(combined_df.tail(126))).astype(int).mean()
         one_year_cov = (~np.isnan(combined_df.tail(252))).astype(int).mean()
-        # Calculating accuracy for long positions
 
         long_trades = ((actual_df[predicted_df > 0] + predicted_df[predicted_df > 0]) / 2)
         long_accuracy = long_trades.mean()
         long_cov = (~np.isnan(long_trades)).astype(int).mean()
-        # Calculating accuracy for short positions
+
         short_trades = ((actual_df[predicted_df < 0] + predicted_df[predicted_df < 0]) / 2)
         short_accuracy = short_trades.mean() * -1
         short_cov = (~np.isnan(short_trades)).astype(int).mean()
 
-    # Creating the resulting DataFrame
     result_df = pd.DataFrame(total_accuracy)
     result_df = pd.concat([result_df, accuracy_6_months, accuracy_1_year, long_accuracy, short_accuracy], axis=1)
-    trades_coverage_df = pd.concat([total_cov, six_month_cov, one_year_cov, long_cov, short_cov],
-                                   axis=1)
+    trades_coverage_df = pd.concat([total_cov, six_month_cov, one_year_cov, long_cov, short_cov], axis=1)
     result_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
     trades_coverage_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
     return result_df, trades_coverage_df
+
 
 
 def directional_accuracy_score(df: pd.DataFrame, coverage: np.array):
@@ -201,4 +186,3 @@ def directional_accuracy_score(df: pd.DataFrame, coverage: np.array):
     multiplied_df = diff_df * coverage.values * w
     value = multiplied_df.mean().sum() * 2
     return value
-
