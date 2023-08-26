@@ -4,14 +4,12 @@ import dash_bootstrap_components as dbc
 from jupyter_dash import JupyterDash
 import pandas as pd
 import re
-import plotly.express as px
-import json
 import plotly.subplots as sp
 from pandas.tseries.offsets import BDay
 from app_service.input_data_maker import generate_data
 import numpy as np
 import datetime as dt
-from dash.exceptions import PreventUpdate
+from utilities.directional_accuracy_services import save_directional_accuracy_score
 from flask import Flask
 import logging
 
@@ -521,6 +519,7 @@ def generate_app(cluster):
 
             print(f'Directional accuracy for model {model}')
             print(gg4.values)
+            save_directional_accuracy_score(model,gg4)
             data_diff = pd.DataFrame(gg3.T, columns=aux_df.loc[match].index)
             data_diff.index = ind
 
