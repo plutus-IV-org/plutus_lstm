@@ -17,7 +17,7 @@ def save_directional_accuracy_score(model_name: str, results: pd.Series) -> None
     # Read the existing register into a DataFrame, selecting specific columns
     df = pd.read_excel(abs_path)[['model_name', 'da_score', 'da_list', 'date']]
 
-    # Prepare the data to be added as a new row in the DataFram e
+    # Prepare the data to be added as a new row in the DataFrame
     df_to_add = pd.DataFrame(
         {'model_name': model_name,
          'da_score': results.mean(),  # Placeholder value, should be replaced with the actual DA score
