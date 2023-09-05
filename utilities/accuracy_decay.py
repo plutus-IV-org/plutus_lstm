@@ -54,7 +54,7 @@ def show_decay(name: str, register_df: pd.DataFrame):
     filtered_df = df[df['model_name'].str.contains(name, case=False, na=False)]
 
     # Create a Figure and Axes object
-    fig, ax = plt.subplots(figsize=(10, 6))
+    fig, ax = plt.subplots(figsize=(18, 9))
 
     for model in filtered_df['model_name'].unique():
         subset = filtered_df[filtered_df['model_name'] == model]
