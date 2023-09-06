@@ -448,7 +448,7 @@ def generate_app(cluster):
 
         for model in relevant_models:
 
-            # Auxiliar graph
+            # Auxiliary graph
             dataset = asset_prices[asset_name].copy()
             dataset.columns = [0]
             asset_predictions_df = asset_predictions[model]

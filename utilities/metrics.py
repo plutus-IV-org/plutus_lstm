@@ -78,7 +78,8 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
     """
     # Extracting relevant information from best_model
     window_size = int(best_model['future_days'])
-
+    actual = actual.copy()
+    predicted = predicted.copy()
     if reshape_required:
         # Preparing the actual DataFrame
         actual_array = np.reshape(actual, (actual.shape[0],))

@@ -71,7 +71,7 @@ def compute_averages(initial_keys: List[str], data: Dict) -> Tuple[List[str], Di
                 for weights in tqdm(selected_weights_combinations, desc="Running Loop", unit="combination"):
                     weighted_score, weighted_average_df = sum_values(relevant_dataframes, weights=weights,
                                                                      real_df=real_price_df)
-                    storage[weighted_score] = weighted_average_df,weights
+                    storage[weighted_score] = weighted_average_df, weights
                 max_key = max(storage.keys())
                 averaged_df = storage[max_key][0]
                 print(f"The best weights combinations is {storage[max_key][1]}")
