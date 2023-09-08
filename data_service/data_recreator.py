@@ -42,13 +42,23 @@ def data_preparation(cluster: str):
     for m in os.listdir(path):
         scope_lst.append(m.split('_')[0:2])
         models_names.append(m)
+
+    # Store data for unique assets in a dictionary
+    unique_assets = {}
+    for a, b in zip(models_names, scope_lst):
+        asset_name = b[0]
+        if asset_name not in unique_assets:
+            dp = DataPreparation(asset_name, b[1], a.split('_')[9], a.split('_')[5], a.split('_')[3])
+            unique_assets[asset_name] = dp._download_prices()
+
     # Common table required as the 1st output form dict
     ct = pd.DataFrame()
     # Creating main dict
     pred_saver = {}
+
     for a, b in zip(models_names, scope_lst):
-        dp = DataPreparation(b[0], b[1], a.split('_')[9], a.split('_')[5], a.split('_')[3])
-        data = dp._download_prices()
+        asset_name = b[0]
+        data = unique_assets[asset_name]
         if b[1] == "Custom":
             lstm_research_dict_path = path + sl + a + sl + 'lstm_research_dict.pickle'
             with open(lstm_research_dict_path, "rb") as f:

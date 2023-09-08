@@ -47,6 +47,10 @@ def show_decay(name: str, register_df: pd.DataFrame):
     # Drop the time component
     df['date'] = df['date'].dt.date
 
+    # Handle duplicate indices by keeping only the row with the minimum 'da_score'
+    idx_to_keep = df.groupby(['model_name', 'date'])['da_score'].idxmin()
+    df = df.loc[idx_to_keep]
+
     # Set the modified 'date' column as index
     df = df.set_index('date')
 
