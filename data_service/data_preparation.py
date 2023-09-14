@@ -1,5 +1,6 @@
 import pandas_ta as ta
 import pandas as pd
+import numpy as np
 import requests
 from data_service.vendors_data import yahoo_downloader as yd
 from data_service.vendors_data import binance_downloader as bd
@@ -242,4 +243,6 @@ class DataPreparation:
         first_column = df.pop('Close')
         df.insert(0, 'Close', first_column)
 
+        if self.type == 'Custom':
+            df['Pct_Change/Volume'] = 10 - (df['Close'].pct_change() * 100 / np.log(df['Volume']))
         return df

@@ -81,7 +81,7 @@ class InitiateResearch:
 
         if self.type == "Custom":
             allowed_indicators = df.columns.tolist()
-            listbox_selector = ListboxSelection(allowed_indicators)
+            listbox_selector = ListboxSelection(allowed_indicators, df)
             selected_items, times_to_run = listbox_selector.get_selected_items()
             _send_discord_message(
                 f'Custom type has been identified. Selected indicators are {selected_items}.'
@@ -187,7 +187,7 @@ class InitiateResearch:
                 sum_frame1.loc['Directional accuracy score'] = str(round(dta, 3))
                 sum_frame1.loc['Name'] = unique_name
                 sum_frame1.loc['Means applies'] = self.use_means
-                #sum_frame1.loc['Data Columns'] = self.data_table.columns.tolist()
+                # sum_frame1.loc['Data Columns'] = self.data_table.columns.tolist()
 
                 collected_data = {'history': history, 'predicted_test_x': predicted_test_x, 'mod': mod,
                                   'yhat': yhat,
