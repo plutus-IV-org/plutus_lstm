@@ -48,7 +48,7 @@ class InitiateResearch:
 
         def init_message():
 
-            if self.testing == True:
+            if self.testing:
                 _send_discord_message(
                     'TESTING\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_\\_')
                 _send_discord_message('TESTING - ' + username + ' starts model training')
@@ -274,7 +274,7 @@ class InitiateResearch:
                 print(self.unique_name + ' has been saved in models vault')
                 return None
 
-            if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and self.testing == False:
+            if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and not self.testing:
                 save_model_in_model_vault()
 
             storage[self.unique_name] = vars(self).copy()
