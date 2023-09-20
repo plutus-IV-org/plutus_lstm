@@ -11,10 +11,11 @@ import os
 
 
 class ListboxSelection:
-    def __init__(self, values, df):
+    def __init__(self, values, df, add_news=False):
         self.values = values
         self.df = df
         self.listbox = None
+        self.add_news_lines = add_news
 
     def _extract_selected_items(self, callback, q):
         selected_items = [self.listbox.get(index) for index in self.listbox.curselection()]
