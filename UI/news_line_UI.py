@@ -2,33 +2,66 @@ from data_service.news.news_vendors import get_news_from_newsdata, get_news_from
 import tkinter as tk
 from tkinter import ttk
 import webbrowser
-from tkinter.simpledialog import askstring
 from tkinter import messagebox
 
 
-def pop_up_news_alias_window():
+def pop_up_news_alias_window(detailed_info=False):
     window = tk.Tk()
     window.title("Input Information")
 
-    tk.Label(window, text="Asset Alias:").grid(row=0, column=0)
-    tk.Label(window, text="Language:").grid(row=1, column=0)
+    tk.Label(window, text="Asset Alias:").grid(row=0, column=0, padx=10, pady=5)
+    tk.Label(window, text="Language:").grid(row=1, column=0, padx=10, pady=5)
 
-    asset_alias_entry = tk.Entry(window)
-    language_entry = tk.Entry(window)
+    entry_width = 20
+    asset_alias_entry = tk.Entry(window, width=entry_width)
+    language_entry = tk.Entry(window, width=entry_width)
 
-    asset_alias_entry.grid(row=0, column=1)
-    language_entry.grid(row=1, column=1)
+    # Set the default language as 'en'
+    language_entry.insert(0, 'en')
 
-    tk.Button(window, text="Submit", command=window.quit).grid(row=2, columnspan=2)
+    asset_alias_entry.grid(row=0, column=1, padx=10, pady=5)
+    language_entry.grid(row=1, column=1, padx=10, pady=5)
+
+    interval_combobox = None
+    input_length_entry = None
+    source_combobox = None
+
+    # If detailed_info is True, add additional fields
+    if detailed_info:
+        tk.Label(window, text="Interval:").grid(row=2, column=0, padx=10, pady=5)
+        interval_combobox = ttk.Combobox(window, values=["1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo"], width=entry_width - 1)
+        interval_combobox.set("1d")
+        interval_combobox.grid(row=2, column=1, padx=10, pady=5)
+
+        tk.Label(window, text="Input Length:").grid(row=3, column=0, padx=10, pady=5)
+        input_length_entry = tk.Entry(window, width=entry_width)
+        input_length_entry.insert(0, '150')
+        input_length_entry.grid(row=3, column=1, padx=10, pady=5)
+
+        tk.Label(window, text="Source:").grid(row=4, column=0, padx=10, pady=5)
+        source_combobox = ttk.Combobox(window, values=["AV", "Yahoo", "Binance"], width=entry_width - 1)
+        source_combobox.set("Binance")
+        source_combobox.grid(row=4, column=1, padx=10, pady=5)
+
+        tk.Button(window, text="Submit", command=window.quit).grid(row=5, column=0, columnspan=2, pady=10)
+    else:
+        tk.Button(window, text="Submit", command=window.quit).grid(row=2, column=0, columnspan=2, pady=10)
 
     window.mainloop()
 
     asset_alias = asset_alias_entry.get()
     language = language_entry.get()
-    window.destroy()
 
-    return asset_alias, language
-
+    # Retrieve the values before destroying the window
+    if detailed_info:
+        interval = interval_combobox.get()
+        input_length = int(input_length_entry.get())
+        source = source_combobox.get()
+        window.destroy()
+        return asset_alias, language, interval, input_length, source
+    else:
+        window.destroy()
+        return asset_alias, language
 
 def create_treeview(frame, df, vendor_name, title_width=None):
     label = tk.Label(frame, text=vendor_name, font=("Arial", 16))

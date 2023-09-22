@@ -3,6 +3,7 @@ from tkinter import messagebox
 import pandas as pd
 import numpy as np
 
+
 class CustomLayerUI:
     def __init__(self):
         self.root = tk.Tk()
@@ -63,5 +64,3 @@ class CustomLayerUI:
 
     def show(self):
         self.root.mainloop()
-
-

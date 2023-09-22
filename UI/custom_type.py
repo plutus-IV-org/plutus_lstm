@@ -11,15 +11,16 @@ import os
 
 
 class ListboxSelection:
-    def __init__(self, values, df, add_news=False):
+    def __init__(self, values, df, easy_mode=False):
         self.values = values
         self.df = df
         self.listbox = None
-        self.add_news_lines = add_news
+        self.easy_mode = easy_mode
 
     def _extract_selected_items(self, callback, q):
         selected_items = [self.listbox.get(index) for index in self.listbox.curselection()]
-        times_to_run = self.times_to_run_spinbox.get()
+        # Conditionally get times_to_run value based on the value of easy_mode
+        times_to_run = None if self.easy_mode else self.times_to_run_spinbox.get()
         callback(selected_items, times_to_run, q)
         self.root.destroy()
 
@@ -120,15 +121,17 @@ class ListboxSelection:
         button_frame = tk.Frame(self.main_frame)
         button_frame.grid(row=0, column=1, sticky=tk.N)
 
-        plot_button = ttk.Button(button_frame, text="Plot Selected Items", command=self._plot_selected_items)
-        plot_button.pack()
+        # Conditionally create the Plot Selected Items button and times_to_run_spinbox based on the value of easy_mode
+        if not self.easy_mode:
+            plot_button = ttk.Button(button_frame, text="Plot Selected Items", command=self._plot_selected_items)
+            plot_button.pack()
+
+            self.times_to_run_spinbox = tk.Spinbox(button_frame, from_=1, to=500, wrap=True)
+            self.times_to_run_spinbox.pack(pady=(50, 0))
 
         continue_button = ttk.Button(button_frame, text="Continue",
                                      command=lambda: self._extract_selected_items(callback, q))
         continue_button.pack()
-
-        self.times_to_run_spinbox = tk.Spinbox(button_frame, from_=1, to=500, wrap=True)
-        self.times_to_run_spinbox.pack(pady=(50, 0))
 
         self.root.mainloop()
 
