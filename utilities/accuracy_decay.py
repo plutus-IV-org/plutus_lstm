@@ -57,6 +57,11 @@ def show_decay(name: str, register_df: pd.DataFrame):
     # Filter rows where 'model_name' contains the variable_name
     filtered_df = df[df['model_name'].str.contains(name, case=False, na=False)]
 
+    # Show only models that contains more than n-times records
+    model_counts = filtered_df['model_name'].value_counts()
+    models_to_keep = model_counts[model_counts > 5].index
+    filtered_df = filtered_df[filtered_df['model_name'].isin(models_to_keep)]
+
     # Create a Figure and Axes object
     fig, ax = plt.subplots(figsize=(18, 9))
 

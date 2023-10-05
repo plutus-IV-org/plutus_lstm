@@ -126,33 +126,35 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
         short_accuracy = short_accuracy.mean()
 
     else:
-        columns = actual_df.columns.tolist()
-        new_columns = [-1] + columns
+        try:
+            columns = actual_df.columns.tolist()
+            new_columns = [-1] + columns
 
-        actual_df[-1] = actual_df[0].shift()
-        true_zero_vals = actual_df[-1].copy()
+            actual_df[-1] = actual_df[0].shift()
+            true_zero_vals = actual_df[-1].copy()
 
-        actual_df.dropna(inplace=True)
-        actual_df = actual_df[new_columns]
+            actual_df.dropna(inplace=True)
+            actual_df = actual_df[new_columns]
 
-        for x in actual_df.index:
-            for y in columns:
-                actual_df.loc[x, y] = actual_df.loc[x, y] - actual_df.loc[x, -1]
-        actual_df = actual_df[columns]
-        actual_df[actual_df > 0] = 1
-        actual_df[actual_df < 0] = -1
+            for x in actual_df.index:
+                for y in columns:
+                    actual_df.loc[x, y] = actual_df.loc[x, y] - actual_df.loc[x, -1]
+            actual_df = actual_df[columns]
+            actual_df[actual_df > 0] = 1
+            actual_df[actual_df < 0] = -1
 
-        predicted_df[-1] = true_zero_vals
-        predicted_df.dropna(inplace=True)
-        predicted_df = predicted_df[new_columns]
+            predicted_df[-1] = true_zero_vals
+            predicted_df.dropna(inplace=True)
+            predicted_df = predicted_df[new_columns]
 
-        for x in predicted_df.index:
-            for y in columns:
-                predicted_df.loc[x, y] = predicted_df.loc[x, y] - predicted_df.loc[x, -1]
-        predicted_df = predicted_df[columns]
-        predicted_df[predicted_df > 0] = 1
-        predicted_df[predicted_df < 0] = -1
-
+            for x in predicted_df.index:
+                for y in columns:
+                    predicted_df.loc[x, y] = predicted_df.loc[x, y] - predicted_df.loc[x, -1]
+            predicted_df = predicted_df[columns]
+            predicted_df[predicted_df > 0] = 1
+            predicted_df[predicted_df < 0] = -1
+        except Exception:
+            pass
         combined_df = actual_df + predicted_df
         combined_df[combined_df != 0] = 1
         total_accuracy = combined_df.sum() / len(combined_df)

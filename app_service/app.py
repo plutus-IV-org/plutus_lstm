@@ -1,5 +1,5 @@
 import plotly.graph_objects as go
-from dash import Dash, html, dcc, Input, Output
+from dash import html, dcc, Input, Output
 import dash_bootstrap_components as dbc
 from jupyter_dash import JupyterDash
 import pandas as pd
@@ -12,12 +12,12 @@ import datetime as dt
 from utilities.directional_accuracy_services import save_directional_accuracy_score
 from flask import Flask
 import logging
+from utilities.metrics import _directional_accuracy
 
 app = Flask(__name__)
 
 log = logging.getLogger('werkzeug')
 log.disabled = True
-# other application initialization logic...
 
 
 def main_plot_formatting(fig):
@@ -289,16 +289,16 @@ def generate_app(cluster):
                             is_crypto = False
                         # Creates n future days from the last index
                         if ip[-1] == 'm':
-                            ld = val.index[-1] + dt.timedelta(minutes=(int(ip[:-1])*num_of_prediction_days))
+                            ld = val.index[-1] + dt.timedelta(minutes=(int(ip[:-1]) * num_of_prediction_days))
                             add_days = pd.date_range(val.index[-1], ld, freq=(ip[:-1] + 'min'))[1:]
-                        if ip[-1] == 'd' and is_crypto==False:
+                        if ip[-1] == 'd' and is_crypto == False:
                             ld = val.index[-1] + BDay(num_of_prediction_days)
                             add_days = pd.bdate_range(aux_df.index[-1], ld)[1:]
                         if ip[-1] == 'd' and is_crypto == True:
                             ld = val.index[-1] + dt.timedelta(days=(int(ip[:-1]) * num_of_prediction_days))
                             add_days = pd.date_range(val.index[-1], ld, freq='D')[1:]
                         if ip[-1] == 'w':
-                            ld = val.index[-1] + dt.timedelta(weeks=(int(ip[:-1])*num_of_prediction_days))
+                            ld = val.index[-1] + dt.timedelta(weeks=(int(ip[:-1]) * num_of_prediction_days))
                             add_days = pd.bdate_range(aux_df.index[-1], ld, freq='W')[1:]
 
                         for x in add_days:
@@ -478,6 +478,16 @@ def generate_app(cluster):
             dataset_pred = dataset_pred[[0] + [col for col in dataset_pred.columns if col != 0]]
             dataset_pred.dropna(inplace=True)
 
+            model_attributes = model.split('_')
+            if model_attributes[1] == 'average':
+                future_days = model_attributes[2]
+            else:
+                future_days = model_attributes[3]
+            last_attribute = model_attributes[-1]
+            targeted = False
+            if last_attribute == 'T':
+                targeted = True
+
             gg = dataset_pred.copy()
             gg2 = aux_df.copy()
             gg2.columns = gg.columns
@@ -503,14 +513,16 @@ def generate_app(cluster):
             # drop 0 day column
             gg2 = gg2[gg2.columns.tolist()[1:]]
 
+            result_df, trades_coverage_df = _directional_accuracy(gg2, gg, {'future_days': future_days},
+                                                                  is_targeted=targeted,
+                                                                  reshape_required=False)
             gg3 = gg + gg2
-            gg3[gg3 != 0] = 1
-            gg4 = gg3.sum() / len(gg3)
+            gg3[abs(gg3) == 1] = np.nan
+            gg3[abs(gg3) == 2] = 1
+            gg4 = result_df['6 months']
 
             a1 = aux_df.loc[match].T.pct_change().T.dropna(axis=1).values
             a2 = dataset_pred.loc[match].T.pct_change().T.dropna(axis=1).values
-            a1 = a1
-            a2 = a2
 
             a3 = a1 * a2
             a3[a3 > 0] = 1
@@ -519,7 +531,7 @@ def generate_app(cluster):
 
             print(f'Directional accuracy for model {model}')
             print(gg4.values)
-            save_directional_accuracy_score(model,gg4)
+            save_directional_accuracy_score(model, gg4)
             data_diff = pd.DataFrame(gg3.T, columns=aux_df.loc[match].index)
             data_diff.index = ind
 
@@ -556,4 +568,4 @@ def generate_app(cluster):
 
         return fig
 
-    app.run_server(debug=False, port = np.random.randint(0, 1024))
+    app.run_server(debug=False, port=np.random.randint(0, 1024))
