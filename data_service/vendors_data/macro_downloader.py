@@ -4,8 +4,13 @@ from datetime import date
 
 
 def mc_downloader():
+    """
+    FDHBFRBN - Federal Debt Held by Federal Reserve Banks (FDHBFRBN)
+    CSUSHPINSA- house holding prices
+    :return:
+    """
     FRED_INDICATORS = ['GDP', 'CPIAUCSL', 'DFF', 'T10YIE', 'UNRATE', 'ICSA', 'PCEDG', 'INDPRO', 'DCOILWTICO', 'GFDEBTN',
-                       'GVZCLS', 'VIXCLS', 'MORTGAGE30US', 'SP500', "PCU221122221122"]
+                       'GVZCLS', 'VIXCLS', 'MORTGAGE30US', 'SP500', "PCU221122221122", 'CSUSHPINSA', "FDHBFRBN"]
     end = date.today()
     start = date(year=end.year - 35, month=end.month, day=end.day)
     macro_indicators = dict()

@@ -36,17 +36,18 @@ def directional_loss(y_true, y_pred):
 def data_preparation(cluster: str):
     t1 = dt.datetime.now()
     sl = _slash_conversion()
+    interval_lst = []
     path = _ROOT_PATH() + sl + 'vaults' + sl + 'cluster' + sl + cluster
     models_names = []
     scope_lst = []
     for m in os.listdir(path):
-        scope_lst.append(m.split('_')[0:2])
+        scope_lst.append(m.split('_')[0:2] + [m.split('_')[5]])
         models_names.append(m)
 
     # Store data for unique assets in a dictionary
     unique_assets = {}
     for a, b in zip(models_names, scope_lst):
-        asset_name = b[0]
+        asset_name = b[0] + '_' + b[1] + '_' + b[2]
         if asset_name not in unique_assets:
             dp = DataPreparation(asset_name, b[1], a.split('_')[9], a.split('_')[5], a.split('_')[3])
             unique_assets[asset_name] = dp._download_prices()
@@ -55,9 +56,8 @@ def data_preparation(cluster: str):
     ct = pd.DataFrame()
     # Creating main dict
     pred_saver = {}
-
     for a, b in zip(models_names, scope_lst):
-        asset_name = b[0]
+        asset_name = b[0] + '_' + b[1] + '_' + b[2]
         data = unique_assets[asset_name]
         if b[1] == "Custom":
             lstm_research_dict_path = path + sl + a + sl + 'lstm_research_dict.pickle'
@@ -105,10 +105,15 @@ def data_preparation(cluster: str):
             model = load_model(absolute_path, custom_objects={'directional_loss': directional_loss})
             predictions = model.predict(testX, verbose=0)
 
+        if 'confidence_tail' in loaded_dict.keys():
+            con_tail = float(loaded_dict['confidence_tail'])
+        else:
+            con_tail = 0.5
         denormalised = _data_denormalisation(predictions.copy(), df_prices, f_d, testY, break_point=False,
-                                             is_targeted=targeted)
+                                             is_targeted=targeted , confidence_lvl= con_tail)
         time_index = normalised_data.tail(len(denormalised)).index
         df_pred = pd.DataFrame(denormalised, index=time_index)
+
         if targeted:
             constructed_df = pd.DataFrame()
             for t in range(f_d):
@@ -125,13 +130,11 @@ def data_preparation(cluster: str):
                 sd = sd + random_adding / 100
             else:
                 sd = sd + random_adding / 1000
-
             df_pred = constructed_df.loc[df_pred.index].values + (df_pred * sd)
-
         pred_saver[a] = common_table.iloc[-126:], df_pred.iloc[-126:]
-        interval = a.split('_')[5]
+        interval_lst.append(a.split('_')[5])
 
     t2 = dt.datetime.now()
     delta = t2 - t1
     print(delta)
-    return pred_saver, interval
+    return pred_saver, interval_lst

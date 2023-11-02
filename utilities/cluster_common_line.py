@@ -1,23 +1,31 @@
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
-from typing import Tuple, List, Dict, Union
+from typing import Tuple, List, Dict, Union, Any
 from utilities.metrics import _directional_accuracy
 from utilities.weights_generator import generate_weight_matrix
 
 
-def sum_values(dictionary: Dict, weights: np.array, real_df: pd.DataFrame) -> pd.DataFrame:
+def sum_values(dictionary: Dict[int, pd.DataFrame], weights: np.array, real_df: pd.DataFrame) -> tuple[
+    Any, Union[int, Any]]:
     """
     Compute the weighted sum of all values (dataframes) in the dictionary.
-
     """
-    total = sum(values * weight for key, weight, values in zip(dictionary.keys(), weights, dictionary.values()))
+    # Make sure weights array and dictionary have the same length
+    if len(weights) != len(dictionary):
+        raise ValueError("The number of weights must match the number of DataFrames in the dictionary")
+    else:
+        if len(weights) == 1:
+            weights = [1]
+        # Compute the weighted sum
+        total = sum(df * weight for df, weight in zip(dictionary.values(), weights))
 
-    result_df, trades_coverage_df = _directional_accuracy(real_df, total,
-                                                          best_model={'future_days': len(total.columns)},
-                                                          reshape_required=False)
-    directional_accuracy_score = result_df['6 months'].mean()
-    return directional_accuracy_score, total
+        # Other computations
+        result_df, trades_coverage_df = _directional_accuracy(real_df, total,
+                                                              best_model={'future_days': len(total.columns)},
+                                                              reshape_required=False)
+        directional_accuracy_score = result_df['6 months'].mean()
+        return directional_accuracy_score, total
 
 
 def compute_averages(initial_keys: List[str], data: Dict) -> Tuple[List[str], Dict]:
@@ -66,7 +74,7 @@ def compute_averages(initial_keys: List[str], data: Dict) -> Tuple[List[str], Di
                 run_times = 100  # You can adjust this value
                 num_columns = len(real_price_df.columns)
                 storage = {}
-                selected_weights_combinations = generate_weight_matrix(num_columns, rows=run_times)
+                selected_weights_combinations = generate_weight_matrix(len(relevant_dataframes), rows=run_times)
                 print('Computing average prediction line based on different wights combinations.')
                 for weights in tqdm(selected_weights_combinations, desc="Running Loop", unit="combination"):
                     weighted_score, weighted_average_df = sum_values(relevant_dataframes, weights=weights,

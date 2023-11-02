@@ -14,6 +14,7 @@ def generate_data(cluster):
         for x in prepared_data.keys():
             keys.append(x)
 
+
         keys, prepared_data = compute_averages(keys, prepared_data)
 
         for x in keys:

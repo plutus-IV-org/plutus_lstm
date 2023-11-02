@@ -124,6 +124,8 @@ class DataPreparation:
                 l = int(input_length[0])
 
             l_s = int(l / 2)  # Calculate the shorter window (l_s) for SMA SMALL
+            l_ss = int(l/4)
+            l_sss = int(l/8)
 
             # Copy the input DataFrame
             tech_dataset = df.copy()
@@ -134,14 +136,20 @@ class DataPreparation:
             df_tech_ind = df.copy()
 
             # Calculate and add SMA SMALL and SMA BIG
+            df_tech_ind['SMA MICRO'] = df_tech_ind['Close'].rolling(window=l_sss).mean()
+            df_tech_ind['SMA MINI'] = df_tech_ind['Close'].rolling(window=l_ss).mean()
             df_tech_ind['SMA SMALL'] = df_tech_ind['Close'].rolling(window=l_s).mean()
             df_tech_ind['SMA BIG'] = df_tech_ind['Close'].rolling(window=l).mean()
 
             # Calculate and add MACD
             df_tech_ind['MACD'] = df_tech_ind['SMA BIG'] / df_tech_ind['SMA SMALL']
+            df_tech_ind['MACD_0.5'] = df_tech_ind['SMA SMALL'] / df_tech_ind['SMA MINI']
+            df_tech_ind['MACD_0.25'] = df_tech_ind['SMA MINI'] / df_tech_ind['SMA MICRO']
 
             # Calculate and add RSI
             df_tech_ind['RSI'] = ta.rsi(df_tech_ind['Close'], length=l)
+            df_tech_ind['RSI_0.5'] = ta.rsi(df_tech_ind['Close'], length=l_s)
+            df_tech_ind['RSI_0.25'] = ta.rsi(df_tech_ind['Close'], length=l_ss)
 
             # Calculate and add ADX
             adx = ta.adx(df_tech_ind['High'], df_tech_ind['Low'], df_tech_ind['Close'], length=l)
