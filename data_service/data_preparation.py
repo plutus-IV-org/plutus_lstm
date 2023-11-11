@@ -2,6 +2,8 @@ import pandas_ta as ta
 import pandas as pd
 import numpy as np
 import requests
+from collections import OrderedDict
+import traceback
 from data_service.vendors_data import yahoo_downloader as yd
 from data_service.vendors_data import binance_downloader as bd
 from data_service.vendors_data.av_downloader import AVDownloader
@@ -58,6 +60,35 @@ class DataPreparation:
             df = close_prices.copy()
             df.dropna(inplace=True)
             return df
+
+        def close_with_time(df, interval):
+            # Assuming 'close(df)' is a predefined function
+            close_df = close(df)
+
+            # Extract the interval unit and number
+            interval_unit = interval[-1]  # get the last character for unit (h, m, d, wk, M)
+            interval_number = int(interval[:-1])  # get the number part of the interval
+
+            # Define a dictionary for the interval unit conversion function
+            conversion_function = {
+                'h': lambda x: x.dt.hour + x.dt.minute / 60 + x.dt.second / 3600,
+                'm': lambda x: x.dt.minute + x.dt.second / 60,
+                'd': lambda x: x.dt.day,
+                'w': lambda x: x.dt.isocalendar().week,
+                'M': lambda x: x.dt.month
+            }
+
+            # Check if the interval unit is valid
+            if interval_unit in conversion_function:
+                # Apply the conversion function to the index
+                time_component = conversion_function[interval_unit](close_df.index.to_series())
+                # Scale based on the interval number and normalize
+                close_df['timestamp_int'] = (time_component / (interval_number * 100)).astype(float)
+
+            else:
+                raise ValueError("Invalid interval unit. Please use 'h', 'm', 'd', 'wk', or 'mo'.")
+
+            return close_df
 
         def volume(df):
             tech_dataset = df.copy()
@@ -222,31 +253,55 @@ class DataPreparation:
             df = pd.concat([df_close, df_senti], axis=1).dropna().copy()
         elif self.type == 'Fundamentals':
             df = fundamentals(df)
+
         else:
-            q1 = close(df)
-            q2 = volume(df)
-            q3 = open(df)
-            q4 = technical(df)
-            q5 = indicators(df, self.past)
-            q6 = macro(df, self.interval)
+            df_dict = {}
+            functions_to_call = {
+                'close': close,
+                'time': lambda df: close_with_time(df, self.interval),
+                'volume': volume,
+                'open': open,
+                'technical': technical,
+                'indicators': lambda df: indicators(df, self.past),
+                'macro': lambda df: macro(df, self.interval),
+                'senti': lambda: 100 + senti(self.asset),  # No 'df' passed here
+                'crypto_sentiment_daily': crypto_sentiment_daily,
+                'ranked_crypto_sentiment_daily': ranked_crypto_sentiment_daily,
+                'crypto_benchmark': lambda: crypto_benchmark()[['Close']].rename(columns={'Close': 'BTC-USD Close'}),
+                'meteo': meteo,
+            }
 
-            try:
-                q7 = 100 + senti(self.asset)
-            except:
-                q7 = pd.DataFrame()
-                print('Sentiment dictionary doesnt contain the asset')
+            # Iterate over the dictionary, try to call each function and store the result in df_dict
+            for key, function in functions_to_call.items():
+                try:
+                    # For functions that don't take 'df' as an argument
+                    if key in ['senti', 'crypto_sentiment_daily', 'ranked_crypto_sentiment_daily', 'crypto_benchmark',
+                               'meteo']:
+                        df_dict[key] = function()
+                    else:  # For all other functions, pass 'df' as an argument
+                        df_dict[key] = function(df)
+                    print(f"Function {key} executed successfully.")
+                except Exception as e:
+                    print(f"An error occurred in function {key}: {e}")
+
+            # If the asset is a cryptocurrency, merge additional data
             if self.asset[-4:] == '-USD':
-                q8 = crypto_sentiment_daily()
-                q9 = ranked_crypto_sentiment_daily()
-                q10 = crypto_benchmark()[['Close']].rename(columns={'Close' : 'BTC-USD Close'})
-                q1 = q1.merge(q8, how='left', left_index=True, right_index=True)
-                q1 = q1.merge(q9, how='left', left_index=True, right_index=True)
-                q1 = q1.merge(q10, how='left', left_index=True, right_index=True)
-            q11 = meteo()
-            q1 = q1.merge(q11, how='left', left_index=True, right_index=True)
+                for key in ['crypto_sentiment_daily', 'ranked_crypto_sentiment_daily', 'crypto_benchmark']:
+                    if key in df_dict:
+                        df_dict['close'] = df_dict['close'].merge(df_dict[key], how='left', left_index=True,
+                                                                  right_index=True)
 
-            df = pd.concat([q1, q2, q3, q4, q5, q6, q7], axis=1)
-            df = df.loc[:, ~df.columns.duplicated()]
+            # Merge all dataframes from the dictionary that have been successfully created
+            df_final = pd.DataFrame()
+            for key, data in df_dict.items():
+                if isinstance(data, pd.DataFrame):
+                    df_final = df_final.join(data, how='outer', rsuffix=f'_{key}') if not df_final.empty else data
+                else:
+                    print(f"No DataFrame for key: {key}")
+
+            # Remove duplicated columns after the join
+            df = df_final.loc[:, ~df_final.columns.duplicated()]
+
 
         first_column = df.pop('Close')
         df.insert(0, 'Close', first_column)

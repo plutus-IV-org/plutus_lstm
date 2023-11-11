@@ -10,6 +10,13 @@ def _data_normalisation(df, is_targeted: bool = False):
     """
     if is_targeted:
         column_to_add = df['Close'].rename('Target')
+    add_timestamp = False
+    if 'timestamp_int' in df.columns:
+        columns = df.columns.tolist()
+        columns.remove('timestamp_int')
+        df_to_add = df['timestamp_int']
+        df = df[columns]
+        add_timestamp = True
     df.replace(0, 1, inplace=True)
     df = (df / df.shift()).fillna(value=1)
     for x in df.columns:
@@ -19,6 +26,8 @@ def _data_normalisation(df, is_targeted: bool = False):
         df[x] = val
     if is_targeted:
         df = pd.concat([df, column_to_add], axis=1)
+    if add_timestamp:
+        df = pd.concat([df, df_to_add], axis=1)
     return df
 
 

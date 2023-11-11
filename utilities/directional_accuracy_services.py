@@ -1,6 +1,8 @@
 import pandas as pd
 import datetime
 from PATH_CONFIG import _ROOT_PATH
+from db_service.SQLite import directional_accuracy_history_add
+from Const import DA_TABLE
 
 
 def save_directional_accuracy_score(model_name: str, results: pd.Series) -> None:
@@ -31,4 +33,6 @@ def save_directional_accuracy_score(model_name: str, results: pd.Series) -> None
     # Write the updated DataFrame back to the Excel file
     df.to_excel(abs_path)
 
+    # Adding table to SQL db
+    directional_accuracy_history_add(DA_TABLE, df_to_add)
     return None
