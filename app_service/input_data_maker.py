@@ -62,6 +62,6 @@ def generate_data(cluster):
             predicted_price_df = final_frame.loc[predicted_price_df.index].values + (predicted_price_df * sd)
         # need to add n future days in order to recreate 126xN actual and predicted tables
         asset_prediction_dic = {full_name: predicted_price_df.tail(126)}
-        asset_price_dic = {short_name: actual_price[['Close']].tail(126 + future_days)}
-        asset_names = [short_name]
+        asset_price_dic = {short_name+'_'+interval: actual_price[['Close']].tail(126 + future_days)}
+        asset_names = [short_name+'_'+interval]
         return asset_prediction_dic, asset_price_dic, asset_names, interval
