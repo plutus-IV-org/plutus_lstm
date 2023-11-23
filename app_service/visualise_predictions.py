@@ -31,9 +31,12 @@ def get_interval_period(model_key):
     return model_key.split('_')[5]
 
 
-def add_prediction(asset_name, interaction_data, hover_or_click, asset_prices, asset_predictions):
+def add_prediction(asset_name, interaction_data, hover_or_click, asset_prices, asset_predictions, anomalies_toggle,
+                   anomalies_window,
+                   rolling_period, zscore_lvl):
     # Generate the main plot based on the selected asset
-    fig, single_asset_price = main_plot(asset_prices, asset_name, hover_or_click)
+    fig, single_asset_price = main_plot(asset_prices, asset_name, hover_or_click, anomalies_toggle, anomalies_window,
+                                        rolling_period, zscore_lvl)
 
     # Handle the case when no interaction data is available
     if interaction_data is None:

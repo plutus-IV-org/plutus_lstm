@@ -1,11 +1,14 @@
 import pandas as pd
 import plotly.graph_objects as go
 import numpy as np
+from data_service.anomalies_detection import detect_anomalies
 from utilities.directional_accuracy_services import save_directional_accuracy_score
 from utilities.metrics import _directional_accuracy
+from typing import List
 
 
-def main_plot(data, asset_name, hover_or_click):
+def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_window,
+              rolling_period, zscore_lvl):
     """
     Create a main price plot for a specified asset using Plotly.
 
@@ -82,6 +85,36 @@ def main_plot(data, asset_name, hover_or_click):
         uirevision="Don't change"  # Preserves the state of the plot (like zoom level) across updates
     )
 
+    if anomalies_toggle == 1:
+        copy_df = df.copy()
+        copy_df.columns = ['Close']
+        red_timestamps, grey_timestamps = detect_anomalies(copy_df, anomalies_window, rolling_period, zscore_lvl)
+
+        if time_unit == 'D':
+            tdelta = pd.Timedelta(days=1)
+        elif time_unit == 'H':
+            tdelta = pd.Timedelta(hours=1)
+        elif time_unit == 'T':
+            tdelta = pd.Timedelta(minutes=1)
+        else:
+            tdelta = pd.Timedelta(seconds=1)
+
+            # Add red rectangles for red_days
+        for timestamp in red_timestamps:
+            fig.add_vrect(
+                x0=timestamp - tdelta, x1=timestamp,
+                fillcolor='red', opacity=0.5,
+                layer='below', line_width=0,
+            )
+
+            # Add grey rectangles for grey_days
+        for timestamp in grey_timestamps:
+            fig.add_vrect(
+                x0=timestamp - tdelta, x1=timestamp,
+                fillcolor='grey', opacity=0.5,
+                layer='below', line_width=0,
+            )
+
     return fig, df
 
 
@@ -116,7 +149,7 @@ def main_plot_formatting(fig):
         # Setting font and background properties
         font_family=font,
         paper_bgcolor='rgba(0,0,0,0)',  # Transparent plot area background
-        plot_bgcolor='rgba(0,0,0,0)',   # Transparent plot background
+        plot_bgcolor='rgba(0,0,0,0)',  # Transparent plot background
 
         # Setting title and legend properties
         title_font_size=20,
@@ -180,7 +213,7 @@ def secondary_plot_formatting(fig):
         # Setting font and background properties
         font_family=font,
         paper_bgcolor='rgba(0,0,0,0)',  # Transparent plot area background
-        plot_bgcolor='rgba(0,0,0,0)',   # Transparent plot background
+        plot_bgcolor='rgba(0,0,0,0)',  # Transparent plot background
 
         # Setting title and legend properties
         title_font_size=20,
@@ -207,7 +240,7 @@ def secondary_plot_formatting(fig):
         yaxis=dict(
             showline=False,
             showgrid=False,
-            showticklabels=True,   # Keeping y-axis tick labels
+            showticklabels=True,  # Keeping y-axis tick labels
             linecolor='rgb(255, 255, 255)',  # White line color for minimalism
             linewidth=2,
             ticks='outside',
@@ -222,7 +255,42 @@ def secondary_plot_formatting(fig):
     return fig
 
 
-def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name):
+def crop_anomalies(df: pd.DataFrame, red_timestamps: List[pd.Timestamp],
+                   grey_timestamps: List[pd.Timestamp]) -> pd.DataFrame:
+    """
+    Modifies a DataFrame by cropping values based on provided timestamps.
+
+    This function takes a DataFrame and two lists of timestamps. For each timestamp in 'red_timestamps',
+    it sets NaN in a cascading manner starting from the timestamp row. For each column, the range of NaNs
+    increases by one step compared to the previous column. It then removes rows corresponding to
+    'grey_timestamps' from the DataFrame.
+
+    :param df: The DataFrame to be modified.
+    :param red_timestamps: List of Timestamps where NaN cascading starts.
+    :param grey_timestamps: List of Timestamps to be removed from the DataFrame.
+    :return: A modified DataFrame with specific values cropped and certain rows removed.
+    """
+    steps = len(df.columns)
+    # Cascading NaNs based on red_timestamps
+    for red_t in red_timestamps:
+        for t in range(steps):
+            d = t + 1
+            f = -d
+            df_slice = df.loc[:red_t]
+            ind = df_slice.index[f]
+            # Setting NaNs in a cascading manner
+            for x in range(d, steps):
+                to_crop_column_name = x + 1
+                df.loc[ind, to_crop_column_name] = np.nan
+
+    # Removing rows corresponding to grey_timestamps
+    df = df.loc[~df.index.isin(grey_timestamps)]
+
+    return df
+
+
+def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, anomalies_toggle, anomalies_window,
+                         rolling_period, zscore_lvl):
     """
     Create auxiliary dataframes for analysis of asset prices and predictions.
 
@@ -303,6 +371,12 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name):
     # Removing the column representing the current day
     auxiliary_directions = auxiliary_directions[auxiliary_directions.columns.tolist()[1:]]
 
+    if anomalies_toggle == 1:
+        copy_df = asset_prices[asset_name].copy()
+        copy_df.columns = ['Close']
+        red_timestamps, grey_timestamps = detect_anomalies(copy_df, anomalies_window, rolling_period, zscore_lvl)
+        direction_differences = crop_anomalies(direction_differences, red_timestamps, grey_timestamps)
+        auxiliary_directions = crop_anomalies(auxiliary_directions, red_timestamps, grey_timestamps)
     # Calculate directional accuracy and other statistics
     result_df, trades_coverage_df = _directional_accuracy(auxiliary_directions, direction_differences,
                                                           {'future_days': future_days}, is_targeted=targeted,
@@ -325,9 +399,13 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name):
     directional_accuracy = ((pd.DataFrame(accuracy_match) + 1) / 2).mean()
 
     # Print and save results
+    if anomalies_toggle == 1:
+        print('___DIRECTIONAL_ACCURACY_WITH_POST_ANOMALIES_TIMESTAMPS___')
+    else:
+        print('___DIRECTIONAL_ACCURACY_WITHOUT_POST_ANOMALIES_TIMESTAMPS___')
     print(f'Directional accuracy for model {model}')
     print(directional_accuracy_score.values)
-    save_directional_accuracy_score(model, directional_accuracy_score)
+    # save_directional_accuracy_score(model, directional_accuracy_score)
 
     # Prepare and return data
     deviation_data_diff = pd.DataFrame(combined_directions.T, columns=auxiliary_df.loc[matching_indexes].index)

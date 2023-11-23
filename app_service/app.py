@@ -32,6 +32,45 @@ def generate_app(cluster):
     )
     hover_or_click = dcc.RadioItems(['Hover mode', 'Click mode'], 'Hover mode', id="hover_or_click")
 
+    anomalies_controls = html.Div([
+        dbc.Row([
+            # 'Apply Anomalies' radio items with reduced width to push them to the left
+            dbc.Col([
+                dbc.RadioItems(
+                    options=[
+                        {"label": "Anomalies_on", "value": 1},
+                        {"label": "Anomalies_off", "value": 0},
+                    ],
+                    value=0,
+                    id="anomalies_toggle",
+                    inline=True,
+                    style={'display': 'flex', 'alignItems': 'center', 'height': '30px'}
+                ),
+            ], width=3, lg=2),  # Adjust 'lg' for larger screens if needed
+
+            # Spacer column to push input fields to the right
+            dbc.Col(width=5, lg=6),
+
+            # Input fields in one line with smaller boxes, aligned to the right
+            dbc.Col([
+                dbc.InputGroup(
+                    [
+                        dbc.InputGroupText("Window"),
+                        dbc.Input(id="anomalies_window", type="number", value=2, size="sm"),
+                        dbc.InputGroupText("Rolling"),
+                        dbc.Input(id="rolling_period", type="number", value=20, size="sm"),
+                        dbc.InputGroupText("Z-Score"),
+                        dbc.Input(id="zscore_lvl", type="number", value=2, size="sm"),
+                    ],
+                    size="sm",
+                    className="mb-2",
+                    style={'flexWrap': 'nowrap', 'width': 'fit-content'}
+                    # Use 'fit-content' to shrink wrap the input group
+                ),
+            ], width=4, lg=4, style={'display': 'flex', 'justifyContent': 'end'}),  # Adjust 'justifyContent' as needed
+        ]),
+    ], className="mb-4")
+
     main_graphs = dbc.Card(
         [
             html.Div(
@@ -62,11 +101,18 @@ def generate_app(cluster):
                     dbc.Col(drop_down_assets, width=8),
                 ]),
             html.Br(),
+
             dbc.Row(
                 [
                     dbc.Col(hover_or_click, width=4),
                 ]),
             html.Br(),
+
+            # Include the anomalies_controls in the layout
+            anomalies_controls,
+
+            html.Br(),
+
             dbc.Row(
                 [
                     dbc.Col(main_graphs),
@@ -90,31 +136,45 @@ def generate_app(cluster):
 
     @app.callback(
         Output('main_graph', 'figure'),
-        [Input('assets_dropdown', 'value'),
-         Input('main_graph', 'hoverData'),
-         Input('main_graph', 'clickData'),
-         Input('hover_or_click', 'value')],
+        [
+            Input('assets_dropdown', 'value'),
+            Input('main_graph', 'hoverData'),
+            Input('main_graph', 'clickData'),
+            Input('hover_or_click', 'value'),
+            Input('anomalies_toggle', 'value'),
+            Input('anomalies_window', 'value'),
+            Input('rolling_period', 'value'),
+            Input('zscore_lvl', 'value'),
+        ],
         prevent_initial_call=False)
-    def update_graph(asset_name, hover_data, click_data, hover_or_click):
+    def update_graph(asset_names, hover_data, click_data, hover_or_click, anomalies_toggle, anomalies_window,
+                     rolling_period, zscore_lvl):
         # Determine the interaction data based on the hover_or_click value
         if hover_data is None and click_data is None:
-            fig, single_asset_price = main_plot(ap, asset_name, hover_or_click)
+            fig, single_asset_price = main_plot(ap, asset_names, hover_or_click, anomalies_toggle, anomalies_window,
+                                                rolling_period, zscore_lvl)
             fig = main_plot_formatting(fig)
             return fig
 
         else:
             interaction_data = hover_data if hover_or_click == "Hover mode" else click_data
             # Call your updated function
-            fig = add_prediction(asset_name, interaction_data, hover_or_click, asset_prices, asset_predictions)
+            fig = add_prediction(asset_names, interaction_data, hover_or_click, asset_prices, asset_predictions,
+                                 anomalies_toggle, anomalies_window,
+                                 rolling_period, zscore_lvl)
             return fig
-
-
 
     @app.callback(
         Output('secondary_graph', 'figure'),
-        Input('assets_dropdown', 'value'),
+        [
+            Input('assets_dropdown', 'value'),
+            Input('anomalies_toggle', 'value'),
+            Input('anomalies_window', 'value'),
+            Input('rolling_period', 'value'),
+            Input('zscore_lvl', 'value'),
+        ],
         prevent_initial_call=False)
-    def update_statistic_graph(asset_name):
+    def update_statistic_graph(asset_name, anomalies_toggle, anomalies_window, rolling_period, zscore_lvl):
 
         relevant_models = []
 
@@ -139,7 +199,8 @@ def generate_app(cluster):
 
         for model in relevant_models:
             deviation_data, deviation_data_diff = auxiliary_dataframes(model, asset_prices, asset_predictions,
-                                                                       asset_name)
+                                                                       asset_name, anomalies_toggle, anomalies_window,
+                                                                       rolling_period, zscore_lvl)
 
             div_fig = go.Heatmap(z=deviation_data.values,
                                  x=deviation_data.columns,
