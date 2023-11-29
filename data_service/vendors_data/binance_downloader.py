@@ -18,7 +18,7 @@ def downloader(asset, interval):
     symbol = ticker + 'USDT'
 
     if interval == '1m':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(5)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -29,7 +29,7 @@ def downloader(asset, interval):
             df = pd.DataFrame(
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_1MINUTE, back, now))
     elif interval == '5m':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(20)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -40,7 +40,7 @@ def downloader(asset, interval):
             df = pd.DataFrame(
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_5MINUTE, back, now))
     elif interval == '15m':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(60)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -51,7 +51,7 @@ def downloader(asset, interval):
             df = pd.DataFrame(
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_15MINUTE, back, now))
     elif interval == '30m':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(120)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -62,7 +62,7 @@ def downloader(asset, interval):
             df = pd.DataFrame(
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_30MINUTE, back, now))
     elif interval == '1h':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(240)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -73,7 +73,7 @@ def downloader(asset, interval):
             df = pd.DataFrame(
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_1HOUR, back, now))
     elif interval == '1d':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(10000)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -84,7 +84,7 @@ def downloader(asset, interval):
             df = pd.DataFrame(
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_1DAY, back, now))
     elif interval == '1wk':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(50000)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -95,7 +95,7 @@ def downloader(asset, interval):
             df = pd.DataFrame(
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_1WEEK, back, now))
     elif interval == '1mo':
-        now = dt.datetime.now().strftime("%d %B, %Y")
+        now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
         back = (dt.datetime.now() - dt.timedelta(200000)).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
