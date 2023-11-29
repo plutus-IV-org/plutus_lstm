@@ -22,51 +22,29 @@ def detect_anomalies(df: pd.DataFrame, n_window: int, period: int = 20, zscore_l
     ValueError: If the DataFrame does not have a 'Close' column.
     """
 
-    # Check if 'Close' column exists
     if 'Close' not in df.columns:
         raise ValueError("DataFrame must have a 'Close' column")
 
     # Calculate daily changes as a ratio of closing prices
-    df['Daily_change'] = df.Close / df.Close.shift()
+    df['Daily_change'] = df.Close.pct_change()
 
     # Calculate rolling mean and standard deviation of daily changes
     df['rolling_mean'] = df['Daily_change'].rolling(window=period).mean()
     df['rolling_std'] = df['Daily_change'].rolling(window=period).std()
 
     # Calculate z-scores of daily changes
-    df['z_score'] = abs(df['Daily_change'] - df['rolling_mean']) / df['rolling_std']
+    df['z_score'] = ((df['Daily_change'] - df['rolling_mean']) / df['rolling_std']).abs()
 
     # Detect anomalies using the specified z-score level
     anomalies = df[df['z_score'] > zscore_lvl].index
 
-    # Data collector for indices post anomalies
-    post_anomalies_periods = []
+    # Efficiently find post-anomaly periods using vectorized operations
+    # Using broadcasting to find ranges for each anomaly and then flattening the array
+    anomaly_positions = df.index.get_indexer(anomalies)
+    ranges = [range(pos + 1, min(pos + 1 + n_window, len(df))) for pos in anomaly_positions]
+    post_anomalies_periods = sorted(set(df.index[day] for sublist in ranges for day in sublist))
 
-    # Iterate over detected anomalies to collect subsequent indices
-    list_of_indexes = df.index.tolist()
-    for anomaly in anomalies:
-        anomaly_index_in_df = list_of_indexes.index(anomaly)
-        first_to_capture = anomaly_index_in_df + 1
-        last_to_capture = anomaly_index_in_df + n_window
-
-        # Ensure indices are within DataFrame bounds
-        if first_to_capture < len(list_of_indexes) and last_to_capture < len(list_of_indexes):
-            periods_to_capture = list_of_indexes[first_to_capture:last_to_capture + 1]
-        elif first_to_capture < len(list_of_indexes) <= last_to_capture:
-            periods_to_capture = list_of_indexes[first_to_capture:]
-        else:
-            break
-
-        # Add indices to collector
-        for ind in periods_to_capture:
-            post_anomalies_periods.append(ind)
-
-    # Clear duplicates and sort indices
-    post_anomalies_cleared = list(set(post_anomalies_periods))
-    post_anomalies_cleared.sort()
-
-    # Return anomalies and post-anomaly periods
-    return anomalies.tolist(), post_anomalies_cleared
+    return anomalies.tolist(), post_anomalies_periods
 
 
 if __name__ == '__main__':
@@ -74,6 +52,7 @@ if __name__ == '__main__':
     import numpy as np
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+
     data = yf.download('ETH-USD')
     lst_1, lst_2 = detect_anomalies(data, 3, 21)
     # Plotting
