@@ -181,11 +181,13 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
     return result_df, trades_coverage_df
 
 
-
 def directional_accuracy_score(df: pd.DataFrame, coverage: np.array):
     w = weights()
     df.replace(np.nan, 0.5, inplace=True)
     diff_df = df - 0.5
-    multiplied_df = diff_df * coverage.values * w
+    # 13/12/2023 Added additional multipliers 0.75 and 1.25
+    # To raise the importance of the accuracy over the coverage
+    # We simply care more about precision
+    multiplied_df = diff_df * (coverage.values * 0.75) * (w * 1.25)
     value = multiplied_df.mean().sum() * 2
     return value

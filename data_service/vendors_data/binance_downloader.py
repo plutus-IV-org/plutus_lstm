@@ -112,6 +112,7 @@ def downloader(asset, interval):
     df.columns = ['Time', 'Open', 'High', 'Low', 'Close', 'Volume']
     df = df.set_index('Time')
     df.index = pd.to_datetime(df.index, unit='ms')
+    #df.index = df.index.tz_localize('UTC').tz_convert('CET').tz_localize(None)
     df = df.astype(float)
     df.dropna(inplace=True)
     raw_data = df.copy()

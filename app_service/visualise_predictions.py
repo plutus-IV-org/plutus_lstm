@@ -17,8 +17,11 @@ def calculate_future_dates(start_date, num_days, interval, is_crypto):
     elif interval[-1] == 'w':
         end_date = start_date + pd.Timedelta(weeks=(int(interval[:-1]) * num_days))
 
-    if interval[-1] in ['m', 'h', 'd']:
+    if interval[-1] in ['h', 'd']:
         return pd.date_range(start=start_date, end=end_date, freq=interval)
+    elif interval[-1] == 'm':
+        interval_for_pandas = interval[:-1] + 'min'
+        return pd.date_range(start=start_date, end=end_date, freq=interval_for_pandas)
     else:  # For business days and weeks
         return pd.bdate_range(start=start_date, end=end_date, freq=interval)
 

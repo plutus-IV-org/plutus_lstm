@@ -95,7 +95,7 @@ def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_wind
         elif time_unit == 'H':
             tdelta = pd.Timedelta(hours=1)
         elif time_unit == 'T':
-            tdelta = pd.Timedelta(minutes=1)
+            tdelta = pd.Timedelta(minutes=15)
         else:
             tdelta = pd.Timedelta(seconds=1)
 
@@ -405,7 +405,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
         print('___DIRECTIONAL_ACCURACY_WITHOUT_POST_ANOMALIES_TIMESTAMPS___')
     print(f'Directional accuracy for model {model}')
     print(directional_accuracy_score.values)
-    # save_directional_accuracy_score(model, directional_accuracy_score)
+    save_directional_accuracy_score(model, directional_accuracy_score)
 
     # Prepare and return data
     deviation_data_diff = pd.DataFrame(combined_directions.T, columns=auxiliary_df.loc[matching_indexes].index)

@@ -8,11 +8,21 @@ from flask import Flask
 import logging
 from app_service.visualise_predictions import add_prediction
 from app_service.app_utilities import *
+import socket
+from contextlib import closing
 
 app = Flask(__name__)
 
 log = logging.getLogger('werkzeug')
 log.disabled = True
+
+
+def find_free_port(start_port, end_port):
+    for port in range(start_port, end_port):
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
+            if sock.connect_ex(('localhost', port)) != 0:
+                return port
+    raise IOError('No free ports')
 
 
 def generate_app(cluster):
@@ -226,4 +236,7 @@ def generate_app(cluster):
 
         return fig
 
-    app.run_server(debug=False, port=np.random.randint(0, 1024))
+    # Find a free port in the range 1024 to 65535
+    free_port = find_free_port(1024, 65535)
+
+    app.run_server(debug=False, port=free_port)
