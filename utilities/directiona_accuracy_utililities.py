@@ -2,7 +2,7 @@ import numpy as np
 
 
 def weights():
-    return np.array([.5, .24, .24, .001, .001])
+    return np.array([.6, .19, .19, .01, .01])
 
 
 def confidence_tails():

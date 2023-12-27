@@ -341,7 +341,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
 
     # Extracting attributes from model name
     model_attributes = model.split('_')
-    future_days = model_attributes[2] if model_attributes[1] == 'average' else model_attributes[3]
+    future_days = model_attributes[2] if 'average' in model_attributes[1] else model_attributes[3]
     targeted = model_attributes[-1] == 'T'
 
     # Calculate differences in directions between actual and predicted prices
@@ -412,3 +412,11 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
     deviation_data_diff.index = ['Lag ' + str(lag + 1) for lag in range(len(deviation_data_diff.index))]
 
     return deviation_data, deviation_data_diff
+
+
+def select_dictionaries(full_dict: dict, key_word: str) -> dict:
+    # Use dictionary comprehension to filter entries where the key contains key_word
+    if key_word == 'all':
+        return full_dict
+    else:
+        return {key: value for key, value in full_dict.items() if key_word in key}

@@ -42,6 +42,18 @@ def generate_app(cluster):
     )
     hover_or_click = dcc.RadioItems(['Hover mode', 'Click mode'], 'Hover mode', id="hover_or_click")
 
+    all_averages_toggle = dcc.RadioItems(
+        options=[
+            {'label': 'All ', 'value': 'all'},
+            {'label': 'Average ', 'value': 'average'},
+            {'label': 'Simple ', 'value': 'simple-average'},
+            {'label': 'Top ', 'value': 'top-average'},
+            {'label': 'Long ', 'value': 'long-average'},
+            {'label': 'Short ', 'value': 'short-average'},
+        ],
+        value='simple-average',
+        id='all_averages_toggle'
+    )
     anomalies_controls = html.Div([
         dbc.Row([
             # 'Apply Anomalies' radio items with reduced width to push them to the left
@@ -115,10 +127,10 @@ def generate_app(cluster):
             dbc.Row(
                 [
                     dbc.Col(hover_or_click, width=4),
+                    dbc.Col(all_averages_toggle, width=4)
                 ]),
             html.Br(),
 
-            # Include the anomalies_controls in the layout
             anomalies_controls,
 
             html.Br(),
@@ -155,10 +167,12 @@ def generate_app(cluster):
             Input('anomalies_window', 'value'),
             Input('rolling_period', 'value'),
             Input('zscore_lvl', 'value'),
+            Input('all_averages_toggle', 'value')
         ],
         prevent_initial_call=False)
     def update_graph(asset_names, hover_data, click_data, hover_or_click, anomalies_toggle, anomalies_window,
-                     rolling_period, zscore_lvl):
+                     rolling_period, zscore_lvl, all_averages_toggle):
+        selected_dict = select_dictionaries(asset_predictions, all_averages_toggle)
         # Determine the interaction data based on the hover_or_click value
         if hover_data is None and click_data is None:
             fig, single_asset_price = main_plot(ap, asset_names, hover_or_click, anomalies_toggle, anomalies_window,
@@ -169,7 +183,7 @@ def generate_app(cluster):
         else:
             interaction_data = hover_data if hover_or_click == "Hover mode" else click_data
             # Call your updated function
-            fig = add_prediction(asset_names, interaction_data, hover_or_click, asset_prices, asset_predictions,
+            fig = add_prediction(asset_names, interaction_data, hover_or_click, asset_prices, selected_dict,
                                  anomalies_toggle, anomalies_window,
                                  rolling_period, zscore_lvl)
             return fig
@@ -182,13 +196,15 @@ def generate_app(cluster):
             Input('anomalies_window', 'value'),
             Input('rolling_period', 'value'),
             Input('zscore_lvl', 'value'),
+            Input('all_averages_toggle', 'value')
         ],
         prevent_initial_call=False)
-    def update_statistic_graph(asset_name, anomalies_toggle, anomalies_window, rolling_period, zscore_lvl):
+    def update_statistic_graph(asset_name, anomalies_toggle, anomalies_window, rolling_period, zscore_lvl,
+                               all_averages_toggle):
 
         relevant_models = []
-
-        for key, val in asset_predictions.items():
+        selected_dict = select_dictionaries(asset_predictions, all_averages_toggle)
+        for key, val in selected_dict.items():
             if re.search(asset_name, key.split('_')[0] + "_" + key.split('_')[5]):
                 relevant_models.append(key)
 
@@ -208,7 +224,7 @@ def generate_app(cluster):
         diff_fig_row = 2
 
         for model in relevant_models:
-            deviation_data, deviation_data_diff = auxiliary_dataframes(model, asset_prices, asset_predictions,
+            deviation_data, deviation_data_diff = auxiliary_dataframes(model, asset_prices, selected_dict,
                                                                        asset_name, anomalies_toggle, anomalies_window,
                                                                        rolling_period, zscore_lvl)
 
