@@ -50,6 +50,7 @@ def generate_app(cluster):
             {'label': 'Top ', 'value': 'top-average'},
             {'label': 'Long ', 'value': 'long-average'},
             {'label': 'Short ', 'value': 'short-average'},
+            {'label': 'Favorite ', 'value': 'favorite'},
         ],
         value='simple-average',
         id='all_averages_toggle'

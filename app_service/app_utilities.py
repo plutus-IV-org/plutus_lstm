@@ -4,6 +4,7 @@ import numpy as np
 from data_service.anomalies_detection import detect_anomalies
 from utilities.directional_accuracy_services import save_directional_accuracy_score
 from utilities.metrics import _directional_accuracy
+from Const import Favorite
 from typing import List
 
 
@@ -418,5 +419,9 @@ def select_dictionaries(full_dict: dict, key_word: str) -> dict:
     # Use dictionary comprehension to filter entries where the key contains key_word
     if key_word == 'all':
         return full_dict
+    elif key_word == 'favorite':
+        for element in Favorite:
+            name = element.value
+        return {key: value for key, value in full_dict.items() if name in key}
     else:
         return {key: value for key, value in full_dict.items() if key_word in key}
