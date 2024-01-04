@@ -53,7 +53,10 @@ class ShortsBatches(Enum):
 
 class Favorite(Enum):
     first = "Hollywood_cerise_Turtle"
-
+    second = 'Jade_Marmot'
+    third = 'Corn_Asian_elephant'
+    fourth = 'Sea_green_Yeti'
+    fifth = 'Olivine_Caiman_lizard'
 # class ModelBatches(Enum):
 #     _1d_10 = {
 #                     }

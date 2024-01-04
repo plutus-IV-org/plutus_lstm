@@ -10,11 +10,15 @@ Functions:
 """
 
 from utilities.accuracy_decay import show_decay, load_da_register
+
 import tkinter as tk
 from tkinter import ttk
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-
+import webbrowser
+import tempfile
+import os
+from db_service.SQLite import directional_accuracy_history_load
+from Const import DA_TABLE
 def plot_decay():
     """
     Triggered when the "Show Decay" button is pressed.
@@ -22,21 +26,15 @@ def plot_decay():
     """
     selected_name = name_var.get()
     if selected_name:
-        # Generate the plot using the selected model name
-        fig, ax = show_decay(selected_name, df)
-
-        # Create a new Tkinter window to display the plot
-        new_window = tk.Toplevel(root)
-        new_window.title("DA Score Decay Over Time")
-
-        # Embed the plot in the new Tkinter window
-        canvas = FigureCanvasTkAgg(fig, master=new_window)
-        canvas_widget = canvas.get_tk_widget()
-        canvas_widget.pack()
+        fig = show_decay(selected_name, df)
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.html')
+        fig.write_html(temp_file.name)
+        temp_file.close()
+        webbrowser.open('file://' + os.path.realpath(temp_file.name))
 
 
 # Load the DataFrame and extract unique model names
-df = load_da_register()
+df = directional_accuracy_history_load(DA_TABLE)
 existing_names = sorted(set([x.split('_')[0] for x in df['model_name'].values]))
 
 # Initialize the main Tkinter window

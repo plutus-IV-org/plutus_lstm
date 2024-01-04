@@ -420,8 +420,12 @@ def select_dictionaries(full_dict: dict, key_word: str) -> dict:
     if key_word == 'all':
         return full_dict
     elif key_word == 'favorite':
+        dict = {}
         for element in Favorite:
             name = element.value
-        return {key: value for key, value in full_dict.items() if name in key}
+            for key in full_dict.keys():
+                if name in key:
+                    dict[key] = full_dict[key]
+        return dict
     else:
         return {key: value for key, value in full_dict.items() if key_word in key}
