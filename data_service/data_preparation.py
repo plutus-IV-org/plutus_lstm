@@ -143,6 +143,8 @@ class DataPreparation:
             Parameters:
             df (pandas.DataFrame): Input DataFrame containing columns 'Close', 'Open', 'High', 'Low', and 'Volume'.
             input_length (int, str or list): Length used for calculating technical indicators. If a string or a list containing a single value is provided, the function will convert it to an integer.
+            Source:
+             1) https://github.com/Luchkata/Algorithmic_Trading_Machine_Learning/blob/main/Algorithmic_Trading_Machine_Learning_Quant_Strategies.ipynb
 
             Returns:
             pandas.DataFrame: DataFrame containing original data with added technical indicators.
@@ -190,6 +192,26 @@ class DataPreparation:
             aroon = ta.aroon(df_tech_ind['High'], df_tech_ind['Low'], length=l) + 100
             df_tech_ind = pd.concat([df_tech_ind, aroon[aroon.columns[-1]]], axis=1)
 
+            # Calculate German-Glass Volatility
+
+            gks = ((np.log(df['High']) - np.log(df['Low'])) ** 2) / 2 - (2 * np.log(2) - 1) * (
+                        (np.log(df['Close']) - np.log(df['Open'])) ** 2)
+            gks_df = pd.DataFrame(gks, columns=['GKS'])
+
+            if isinstance(input_length,list):
+                il = input_length[0]
+            else:
+                il = input_length
+            bb = ta.bbands(close=df['Close'], length=(int(il)))[[f'BBL_{str(il)}_2.0',f'BBM_{str(il)}_2.0',f'BBU_{str(il)}_2.0']]
+            bb_halved = ta.bbands(close=df['Close'], length=int((int(il) / 2)))[
+                [f'BBL_{str(int((int(il)/2)))}_2.0', f'BBM_{str(int((int(il)/2)))}_2.0', f'BBU_{str(int((int(il)/2)))}_2.0']]
+            bb_quarter = ta.bbands(close=df['Close'], length=int((int(il) / 4)))[
+                [f'BBL_{str(int((int(il)/4)))}_2.0', f'BBM_{str(int((int(il)/4)))}_2.0', f'BBU_{str(int((int(il)/4)))}_2.0']]
+            atr = ta.atr(df['High'], df['Low'], df['Close'], length=int(il))
+            atr_halved = ta.atr(df['High'], df['Low'], df['Close'], length=int(int(il)/2))
+            atr_quarter = ta.atr(df['High'], df['Low'], df['Close'], length=int(int(il)/4))
+
+            df_tech_ind = pd.concat([df_tech_ind, gks_df, bb, bb_halved, bb_quarter, atr, atr_halved, atr_quarter], axis=1)
             # Remove rows with missing values
             df_tech_ind.dropna(inplace=True)
 

@@ -121,7 +121,7 @@ def downloader(asset, interval):
     cut_length = 3000
     if len(raw_data) < min_accept_length:
         raise ValueError('No enough data!')
-    if len(raw_data) > cut_length:
-        raw_data = raw_data.tail(cut_length)
+    # if len(raw_data) > cut_length:
+    #     raw_data = raw_data.tail(cut_length)
     print(f'Output length is {len(raw_data)}')
     return raw_data

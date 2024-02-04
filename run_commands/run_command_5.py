@@ -19,7 +19,7 @@ testing = False
 directional_orientation = True
 use_means = False
 
-if testing == True:
+if testing:
     df = pd.read_excel(r'inputs/init_test.xlsx')
     # df = pd.read_json(r'service_space/asset_config_test.json')
 else:

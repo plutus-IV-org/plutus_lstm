@@ -20,7 +20,7 @@ pd.options.mode.chained_assignment = None
 def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: bool = False):
     # Enable eager execution
     # tf.config.run_functions_eagerly(True)
-    if testing == True:
+    if testing:
         from utilities.hyperparameters_test import _hyperparameters_one_layer, \
             _hyperparameters_two_layers, _hyperparameters_three_layers
     else:
