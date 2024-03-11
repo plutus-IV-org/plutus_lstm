@@ -19,6 +19,8 @@ import tempfile
 import os
 from db_service.SQLite import directional_accuracy_history_load
 from Const import DA_TABLE
+
+
 def plot_decay():
     """
     Triggered when the "Show Decay" button is pressed.

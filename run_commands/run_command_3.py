@@ -6,6 +6,8 @@ from utilities.service_functions import _slash_conversion
 import os
 from distutils.dir_util import copy_tree
 
+
+
 root = _ROOT_PATH()
 sl = _slash_conversion()
 model_vault_path = root + sl + 'vaults' + sl + 'model_vault' + sl + 'LSTM_research_models'
@@ -25,3 +27,5 @@ for name in files:
     cluster_absolute_path = cluster_folder_path + sl + end_path + sl + name
     old_absolute_path = root + sl + 'vaults' + sl + 'model_vault' + sl + 'LSTM_research_models' + sl + name
     copy_tree(old_absolute_path, cluster_absolute_path)
+
+

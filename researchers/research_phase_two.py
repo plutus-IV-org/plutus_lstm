@@ -1,8 +1,8 @@
-from tensorflow.keras.callbacks import Callback
+from keras.callbacks import Callback
 import pandas as pd
 import matplotlib.pyplot as plt
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential, load_model
+from keras.layers import LSTM, Dense, Dropout
 from keras.callbacks import EarlyStopping
 
 import tensorflow as tf

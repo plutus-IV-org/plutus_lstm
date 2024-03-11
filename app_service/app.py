@@ -10,12 +10,12 @@ from app_service.visualise_predictions import add_prediction
 from app_service.app_utilities import *
 import socket
 from contextlib import closing
-
+from playsound import playsound
 app = Flask(__name__)
 
 log = logging.getLogger('werkzeug')
 log.disabled = True
-
+sound_path = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\run_command_report_generated.mp3"
 
 def find_free_port(start_port, end_port):
     for port in range(start_port, end_port):
@@ -256,4 +256,5 @@ def generate_app(cluster):
     # Find a free port in the range 1024 to 65535
     free_port = find_free_port(1024, 65535)
 
+    playsound(sound_path)
     app.run_server(debug=False, port=free_port)

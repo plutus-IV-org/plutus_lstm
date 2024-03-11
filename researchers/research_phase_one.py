@@ -2,8 +2,8 @@ from utilities.service_functions import _slash_conversion
 import platform
 import glob
 import pandas as pd
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential, load_model
+from keras.layers import LSTM, Dense, Dropout
 import talos
 from talos.utils import lr_normalizer
 from talos import Reporting
