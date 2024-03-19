@@ -7,15 +7,19 @@ from app_service.input_data_maker import generate_data
 from flask import Flask
 import logging
 from app_service.visualise_predictions import add_prediction
+from db_service.SQLite import directional_accuracy_history_load
 from app_service.app_utilities import *
 import socket
 from contextlib import closing
 from playsound import playsound
+from Const import DA_TABLE
+
 app = Flask(__name__)
 
 log = logging.getLogger('werkzeug')
 log.disabled = True
 sound_path = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\run_command_report_generated.mp3"
+
 
 def find_free_port(start_port, end_port):
     for port in range(start_port, end_port):
@@ -218,33 +222,59 @@ def generate_app(cluster):
 
         fig = sp.make_subplots(rows=num_relevant_models * 2,
                                cols=1,
-                               shared_xaxes=True,
+                               shared_xaxes=False,
                                subplot_titles=(subplot_names))
 
-        div_fig_row = 1
+        history_score_fig_row = 1
         diff_fig_row = 2
 
         for model in relevant_models:
             deviation_data, deviation_data_diff = auxiliary_dataframes(model, asset_prices, selected_dict,
                                                                        asset_name, anomalies_toggle, anomalies_window,
                                                                        rolling_period, zscore_lvl)
+            df = directional_accuracy_history_load(DA_TABLE)
+            selected_df = df[df['model_name'] == model]
+            grouped_df = group_by_history_score(selected_df)
+            # Load the DataFrame and extract unique model names
+            # history_score_fig = go.Scatter(x=grouped_df['date'],
+            #                                y=grouped_df['da_score'],
+            #                                mode='lines',  # Use 'markers' for scatter plot
+            #                                marker=dict(
+            #                                    color=grouped_df['da_score'],
+            #                                    # Color of markers based on da_score values
+            #                                    colorscale='magma',  # You can choose any supported colorscale
+            #
+            #                                ))
+
+            history_score_fig = go.Bar(
+                x=grouped_df['date'],
+                y=grouped_df['da_score'],
+                marker=dict(
+                    color=grouped_df['da_score'],
+                    cmin=0,
+                    cmax=1,  # Set the color of the bars based on the da_score
+                    colorscale='Turbo',  # Or any other color scale that you find eye-friendly
+                )
+            )
 
             div_fig = go.Heatmap(z=deviation_data.values,
                                  x=deviation_data.columns,
                                  y=deviation_data.index,
                                  colorscale='Reds',
                                  showscale=False)
-
+            #round(deviation_data_diff.mean(axis=1), 2).values.tolist()
             diff_fig = go.Heatmap(z=deviation_data_diff.values,
                                   x=deviation_data_diff.columns,
                                   y=deviation_data_diff.index,
                                   colorscale='BuGn',
                                   showscale=False)
 
-            fig.add_trace(div_fig, row=div_fig_row, col=1)
+            # fig.add_trace(div_fig, row=div_fig_row, col=1)
+            fig.add_trace(history_score_fig, row=history_score_fig_row, col=1)
             fig.add_trace(diff_fig, row=diff_fig_row, col=1)
 
-            div_fig_row += 2
+            # div_fig_row += 2
+            history_score_fig_row += 2
             diff_fig_row += 2
 
         fig.update_layout(height=dynamic_height(num_relevant_models), title_text="Models performance")

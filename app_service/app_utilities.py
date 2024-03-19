@@ -297,8 +297,8 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
 
     Args:
     - model (str): The name of the model used for predictions.
-    - asset_prices (pd.DataFrame): Historical prices of assets.
-    - asset_predictions (pd.DataFrame): Predicted prices from the model.
+    - asset_prices (dict): Historical prices of assets.
+    - asset_predictions (dict): Predicted prices from the model.
     - asset_name (str): The name of the asset.
 
     Returns:
@@ -343,7 +343,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
     # Extracting attributes from model name
     model_attributes = model.split('_')
     future_days = model_attributes[2] if 'average' in model_attributes[1] else model_attributes[3]
-    targeted = model_attributes[-1] == 'T'
+    targeted = True if 'average' in model_attributes[1] else model_attributes[-1] == 'T'
 
     # Calculate differences in directions between actual and predicted prices
     direction_differences = model_predictions.copy()
@@ -429,3 +429,9 @@ def select_dictionaries(full_dict: dict, key_word: str) -> dict:
         return dict
     else:
         return {key: value for key, value in full_dict.items() if key_word in key}
+
+
+def group_by_history_score(df: pd.DataFrame) -> pd.DataFrame:
+    df['date'] = pd.to_datetime(df['date']).dt.date
+    output_df = df.groupby('date').min().reset_index()
+    return output_df
