@@ -1,11 +1,15 @@
 import pandas as pd
+from enum import Enum
 import plotly.graph_objects as go
 import numpy as np
 from data_service.anomalies_detection import detect_anomalies
 from utilities.directional_accuracy_services import save_directional_accuracy_score
+from db_service.SQLite import directional_accuracy_history_load
+from Const import DA_TABLE
 from utilities.metrics import _directional_accuracy
-from Const import Favorite
+from Const import Favorite, ShortsBatches, LongsBatches, ModelBatches
 from typing import List
+import re
 
 
 def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_window,
@@ -433,5 +437,122 @@ def select_dictionaries(full_dict: dict, key_word: str) -> dict:
 
 def group_by_history_score(df: pd.DataFrame) -> pd.DataFrame:
     df['date'] = pd.to_datetime(df['date']).dt.date
-    output_df = df.groupby('date').min().reset_index()
+    output_df = df.groupby(['date', 'model_name']).min().reset_index()
     return output_df
+
+
+def contains_enum_value(model_name: str, enum_class: Enum, nested: bool) -> bool:
+    """
+    Checks if the model name contains any of the values specified in the enum_class.
+
+    :param model_name: Name of the model to check.
+    :param enum_class: Enum class containing the values to check against.
+    :param nested: A boolean flag indicating if the enum values are nested inside dictionaries.
+    :return: True if the model name contains any of the enum values, False otherwise.
+    """
+    if nested:
+        # Modified to handle enum values that are dictionaries
+        for enum_value in enum_class:
+            # Enum value is now a dict, so we iterate over its keys
+            for key in enum_value.value.keys():
+                if re.search(rf"{re.escape(key)}", model_name, re.IGNORECASE):
+                    return True
+    else:
+        # The nested scenario remains unchanged
+        for enum_value in enum_class:
+            if re.search(rf"{re.escape(enum_value.value)}", model_name, re.IGNORECASE):
+                return True
+    return False
+
+
+def filter_loaded_history_score(asset_interval: str, type: str) -> pd.DataFrame:
+    """
+    Filters loaded DataFrame based on model names matching certain criteria.
+
+    :param asset_interval: A string representing the asset and interval, separated by '_'.
+    :param type: The type of filtering to apply, based on specific characteristics like 'favorite'.
+    :return: A filtered pandas DataFrame.
+    """
+    # Assuming directional_accuracy_history_load is defined elsewhere to load the DataFrame
+    loaded_df = directional_accuracy_history_load(DA_TABLE)
+    unique_names = set(loaded_df.model_name.values)
+    asset, interval = asset_interval.split('_')
+    matched_assets = [name for name in unique_names if name.split('_')[0] == asset]
+
+    matched_interval = matched_assets if interval == 'All' else [
+        model_name for model_name in matched_assets if
+        re.search(rf"(?:^|_){re.escape(interval)}(?:$|_)", model_name, re.IGNORECASE)
+    ]
+    selected_df = loaded_df[loaded_df['model_name'].isin(matched_interval)]
+    if type == 'all':
+        output_df = selected_df.copy()
+    elif type == 'favorite':
+        output_df = selected_df[selected_df['model_name'].apply(lambda x: contains_enum_value(x, Favorite, False))]
+    elif type == 'short-average':
+        output_df = selected_df[selected_df['model_name'].apply(lambda x: contains_enum_value(x, ShortsBatches, True))]
+    elif type == 'long-average':
+        output_df = selected_df[selected_df['model_name'].apply(lambda x: contains_enum_value(x, LongsBatches, True))]
+    elif type == 'top-average':
+        output_df = selected_df[selected_df['model_name'].apply(lambda x: contains_enum_value(x, ModelBatches, True))]
+    else:  # Case of simple-average
+        output_df = selected_df[selected_df['model_name'].apply(lambda x: 'simple-average' in x.split('_'))]
+    return output_df
+
+
+def prepare_rating(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Assigns rankings to models in a DataFrame based on 'da_score' for each date.
+
+    The function sorts the DataFrame by 'date', groups by 'date',
+    and assigns a rank to each model based on 'da_score' within each date group.
+    The model with the highest 'da_score' for a date receives a rank of 1.
+
+    Parameters:
+    df (pd.DataFrame): The input DataFrame containing 'model_name', 'da_score', and 'date'.
+
+    Returns:
+    pd.DataFrame: The DataFrame with an additional column 'rank' indicating the ranking.
+    """
+
+    # Ensure the DataFrame is sorted by 'date' for consistent ranking.
+    df_sorted = df.sort_values(by='date')
+
+    df_sorted.dropna(inplace=True)
+    # Group by 'date' and rank 'da_score' within each group; highest score gets rank 1.
+    df_sorted['rank'] = df_sorted.groupby('date')['da_score'].rank(method='first', ascending=False)
+
+    # Convert the rank column to integers.
+    df_sorted['rank'] = df_sorted['rank'].astype(int)
+
+    return df_sorted
+
+
+def filter_top_ranked_models(ranked_df: pd.DataFrame, top_n: int) -> pd.DataFrame:
+    """
+    Filters the top N ranked models for each date from a DataFrame with ranked models.
+
+    The function takes a DataFrame that contains model rankings and selects the rows
+    where the rank is less than or equal to the specified top N rank.
+
+    Parameters:
+    ranked_df (pd.DataFrame): The DataFrame containing ranked models.
+    top_n (int): The top rank level to include in the filtered DataFrame.
+
+    Returns:
+    pd.DataFrame: A DataFrame containing only the top N ranked models for each date.
+    """
+
+    # Ensure the input DataFrame is sorted by date and then by rank to maintain order.
+    ranked_df_sorted = ranked_df.sort_values(by=['date', 'rank'])
+
+    # Filter the DataFrame to only include rows where the rank is within the top N.
+    top_ranked_df = ranked_df_sorted[ranked_df_sorted['rank'] <= top_n]
+
+    return top_ranked_df
+
+
+if __name__ == '__main__':
+    df = filter_loaded_history_score('ETH-USD_All', 'simple-average')
+    grouped_df = group_by_history_score(df)
+    ranked_df = prepare_rating(grouped_df)
+    filtered_df = filter_top_ranked_models(ranked_df, 2)
