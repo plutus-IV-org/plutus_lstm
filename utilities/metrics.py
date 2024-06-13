@@ -103,11 +103,11 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
             combined_df[abs(diff) == 2] = 1
             combined_df[abs(diff) == 1] = np.nan
             trades_coverage_array = (~np.isnan(combined_df)).astype(int).mean()
-            return combined_df.mean(), trades_coverage_array
+            return combined_df.mean(), trades_coverage_array, combined_df
 
-        total_accuracy, total_cov = compute_dma(combined_df.copy())
-        accuracy_6_months, six_month_cov = compute_dma(combined_df.tail(126).copy())
-        accuracy_1_year, one_year_cov = compute_dma(combined_df.tail(252).copy())
+        total_accuracy, total_cov ,combined_df= compute_dma(combined_df.copy())
+        accuracy_1_year, one_year_cov,combined_df = compute_dma(combined_df.tail(252).copy())
+        accuracy_6_months, six_month_cov, combined_df = compute_dma(combined_df.tail(126).copy())
 
         long_accuracy = diff.copy()
         long_accuracy[diff == 0] = 0

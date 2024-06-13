@@ -78,7 +78,7 @@ class InitiateResearch:
         # Getting close table
 
         df = DataPreparation(self.asset, self.type, self.source, self.interval, self.past)._download_prices()
-
+        self.columns_names = df.columns
         if self.type == "Custom":
             allowed_indicators = df.columns.tolist()
             listbox_selector = ListboxSelection(allowed_indicators, df)
@@ -89,6 +89,7 @@ class InitiateResearch:
             self.loops_to_run = int(times_to_run)
             df = df[selected_items]
             df = df.dropna()
+            self.columns_names = df.columns
             if len(df) < 1500:
                 raise Exception('Too short selected data')
         if self.custom_layers:
@@ -101,6 +102,7 @@ class InitiateResearch:
 
         self.data_table = df.copy()
         # Normalisation
+
         normalised_data = _data_normalisation(df, self.directional_orientation)
         self.data_table_normalized = normalised_data.copy()
         distribution_type = _distribution_type(df)
@@ -187,6 +189,7 @@ class InitiateResearch:
                 sum_frame1.loc['Directional accuracy score'] = str(round(dta, 3))
                 sum_frame1.loc['Name'] = unique_name
                 sum_frame1.loc['Means applies'] = self.use_means
+                sum_frame1.loc['Selected regressors'] = str(self.columns_names.to_list())
                 # sum_frame1.loc['Data Columns'] = self.data_table.columns.tolist()
 
                 collected_data = {'history': history, 'predicted_test_x': predicted_test_x, 'mod': mod,

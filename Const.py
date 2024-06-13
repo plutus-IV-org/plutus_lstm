@@ -59,6 +59,8 @@ class Favorite(Enum):
     fifth = 'Olivine_Caiman_lizard'
     sixth = 'Tan_Clown_fish' #  10/01/24 1h price, rsi Tested not over-fitted model
     seventh = 'Teal_Quail' #21/01/23 1h 5 layers with low lr and good val loss (<loss)
+
+
 # class ModelBatches(Enum):
 #     _1d_10 = {
 #                     }

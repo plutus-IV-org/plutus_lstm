@@ -83,8 +83,7 @@ def compute_averages(initial_keys: List[str], data: Dict) -> Tuple[List[str], Di
                 weighted_average_df = count_mean_prediction_line(relevant_dataframes, weights=weights_array)
                 # Add the averaged dataframe to the data dictionary
                 new_key = f"{name}_simple-average_{column_count}_future_steps_{interval}"
-                sample_key_for_interval = next(filter(lambda x: interval in x, initial_keys))
-                data[new_key] = data[sample_key_for_interval][0], weighted_average_df
+                data[new_key] = data[filtered_keys[0]][0], weighted_average_df
                 initial_keys.append(new_key)
 
                 # # Long mean

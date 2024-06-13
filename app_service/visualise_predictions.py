@@ -36,10 +36,7 @@ def get_interval_period(model_key):
 
 def add_prediction(asset_name, interaction_data, hover_or_click, asset_prices, asset_predictions, anomalies_toggle,
                    anomalies_window,
-                   rolling_period, zscore_lvl):
-    # Generate the main plot based on the selected asset
-    fig, single_asset_price = main_plot(asset_prices, asset_name, hover_or_click, anomalies_toggle, anomalies_window,
-                                        rolling_period, zscore_lvl)
+                   rolling_period, zscore_lvl, candles_toggle,fig,single_asset_price):
 
     # Handle the case when no interaction data is available
     if interaction_data is None:
@@ -62,6 +59,9 @@ def add_prediction(asset_name, interaction_data, hover_or_click, asset_prices, a
                     # Adding actual price as the first day of prediction
                     prediction_for_plot.loc[selected_day] = asset_prices[asset_name].loc[selected_day][0]
                     prediction_for_plot.sort_index(inplace=True)
+                    if candles_toggle ==1:
+                        single_asset_price = single_asset_price[['Close']]
+
                     df_plot = pd.merge(single_asset_price, prediction_for_plot.sort_index(), left_index=True,
                                        right_index=True)
                     df_plot.columns = [f'{asset_name}_actual', f'{asset_name}_predicted']

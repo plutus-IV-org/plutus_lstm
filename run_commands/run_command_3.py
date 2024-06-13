@@ -4,7 +4,7 @@ This module sorts existing models from models_vault to cluster vault as per tick
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion
 import os
-from distutils.dir_util import copy_tree
+from distutils.dir_util import copy_tree, remove_tree
 
 
 
@@ -27,5 +27,6 @@ for name in files:
     cluster_absolute_path = cluster_folder_path + sl + end_path + sl + name
     old_absolute_path = root + sl + 'vaults' + sl + 'model_vault' + sl + 'LSTM_research_models' + sl + name
     copy_tree(old_absolute_path, cluster_absolute_path)
-
+    # Clean old directory
+remove_tree(model_vault_path)
 

@@ -32,7 +32,7 @@ def find_free_port(start_port, end_port):
 
 def generate_app(cluster):
     # building components of the app
-
+    t1 = dt.datetime.now()
     app = JupyterDash(external_stylesheets=[dbc.themes.DARKLY])
     # app = Dash(__name__)
     asset_predictions, asset_prices, asset_names, interval = generate_data(cluster)
@@ -45,21 +45,41 @@ def generate_app(cluster):
         style={'color': 'black',
                'width': '50%'}
     )
-    hover_or_click = dcc.RadioItems(['Hover mode', 'Click mode'], 'Hover mode', id="hover_or_click")
 
-    all_averages_toggle = dcc.RadioItems(
-        options=[
-            {'label': 'All ', 'value': 'all'},
-            {'label': 'Average ', 'value': 'average'},
-            {'label': 'Simple ', 'value': 'simple-average'},
-            {'label': 'Top ', 'value': 'top-average'},
-            {'label': 'Long ', 'value': 'long-average'},
-            {'label': 'Short ', 'value': 'short-average'},
-            {'label': 'Favorite ', 'value': 'favorite'},
-        ],
-        value='simple-average',
-        id='all_averages_toggle'
-    )
+    combined_controls = html.Div([
+        dbc.Row([
+            # 'Hover or Click' radio items
+            dbc.Col(
+                dbc.RadioItems(
+                    options=[
+                        {'label': 'Hover', 'value': 'Hover mode'},
+                        {'label': 'Click ', 'value': 'Click mode'},
+                    ],
+                    value='Hover mode',
+                    inline=True,
+                    id='hover_or_click',
+                ), width=3, lg=2  # Layout properties are applied here
+            ),
+
+            # 'All Averages Toggle' radio items
+            dbc.Col(
+                dbc.RadioItems(
+                    options=[
+                        {'label': 'All ', 'value': 'all'},
+                        {'label': 'Average ', 'value': 'average'},
+                        {'label': 'Simple ', 'value': 'simple-average'},
+                        {'label': 'Top ', 'value': 'top-average'},
+                        {'label': 'Long ', 'value': 'long-average'},
+                        {'label': 'Short ', 'value': 'short-average'},
+                        {'label': 'Favorite ', 'value': 'favorite'},
+                    ],
+                    value='simple-average',
+                    inline=True,
+                    id='all_averages_toggle',
+                ), width=9, lg=6  # Adjusted width and lg for spacing
+            ),
+        ]),
+    ], className="mb-4")
     anomalies_controls = html.Div([
         dbc.Row([
             # 'Apply Anomalies' radio items with reduced width to push them to the left
@@ -77,7 +97,23 @@ def generate_app(cluster):
             ], width=3, lg=2),  # Adjust 'lg' for larger screens if needed
 
             # Spacer column to push input fields to the right
-            dbc.Col(width=5, lg=6),
+            dbc.Col(width=2, lg=2),
+
+            dbc.Col([
+                dbc.RadioItems(
+                    options=[
+                        {"label": "Candles", "value": 1},
+                        {"label": "Scatter", "value": 0},
+                    ],
+                    value=0,
+                    id="candles_toggle",
+                    inline=True,
+                    style={'display': 'flex', 'alignItems': 'center', 'height': '30px'}
+                ),
+            ], width=3, lg=2),  # Adjust 'lg' for larger screens if needed
+
+            # Spacer column to push input fields to the right
+            dbc.Col(width=2, lg=2),
 
             # Input fields in one line with smaller boxes, aligned to the right
             dbc.Col([
@@ -130,11 +166,7 @@ def generate_app(cluster):
                 ]),
             html.Br(),
 
-            dbc.Row(
-                [
-                    dbc.Col(hover_or_click, width=4),
-                    dbc.Col(all_averages_toggle, width=4)
-                ]),
+            combined_controls,
             html.Br(),
 
             anomalies_controls,
@@ -151,11 +183,12 @@ def generate_app(cluster):
         ],
         fluid=True,
     )
-    # TODO Additional tab functionalities
     # New tab content with additional functionalities
     tab_2_asset_names = asset_names.copy()
-    tab_2_asset_names.append(asset_names[0].split('_')[0] + '_All')
-
+    copy_tab_2_names = asset_names.copy()
+    for x in copy_tab_2_names:
+        tab_2_asset_names.append(x.split('_')[0] + '_All')
+    tab_2_asset_names = list(set(tab_2_asset_names))
     additional_content = dbc.Container(
         [
             html.H2("Directional accuracy score rating"),
@@ -247,26 +280,27 @@ def generate_app(cluster):
             Input('anomalies_window', 'value'),
             Input('rolling_period', 'value'),
             Input('zscore_lvl', 'value'),
-            Input('all_averages_toggle', 'value')
+            Input('all_averages_toggle', 'value'),
+            Input('candles_toggle', 'value')
         ],
         prevent_initial_call=False)
     def update_graph(asset_names, hover_data, click_data, hover_or_click, anomalies_toggle, anomalies_window,
-                     rolling_period, zscore_lvl, all_averages_toggle):
+                     rolling_period, zscore_lvl, all_averages_toggle, candles_toggle):
         selected_dict = select_dictionaries(asset_predictions, all_averages_toggle)
         # Determine the interaction data based on the hover_or_click value
-        if hover_data is None and click_data is None:
-            fig, single_asset_price = main_plot(ap, asset_names, hover_or_click, anomalies_toggle, anomalies_window,
-                                                rolling_period, zscore_lvl)
-            fig = main_plot_formatting(fig)
-            return fig
 
-        else:
+        fig, single_asset_price = main_plot(ap, asset_names, hover_or_click, anomalies_toggle, anomalies_window,
+                                            rolling_period, zscore_lvl, candles_toggle)
+        fig = main_plot_formatting(fig)
+
+        if hover_data is not None and click_data is not None:
             interaction_data = hover_data if hover_or_click == "Hover mode" else click_data
             # Call your updated function
             fig = add_prediction(asset_names, interaction_data, hover_or_click, asset_prices, selected_dict,
                                  anomalies_toggle, anomalies_window,
-                                 rolling_period, zscore_lvl)
-            return fig
+                                 rolling_period, zscore_lvl, candles_toggle, fig, single_asset_price)
+        return fig
+
 
     @app.callback(
         [
@@ -433,19 +467,19 @@ def generate_app(cluster):
             deviation_data, deviation_data_diff = auxiliary_dataframes(model, asset_prices, selected_dict,
                                                                        asset_name, anomalies_toggle, anomalies_window,
                                                                        rolling_period, zscore_lvl)
+
             df = directional_accuracy_history_load(DA_TABLE)
             selected_df = df[df['model_name'] == model]
             grouped_df = group_by_history_score(selected_df)
-            # Load the DataFrame and extract unique model names
-            # history_score_fig = go.Scatter(x=grouped_df['date'],
-            #                                y=grouped_df['da_score'],
-            #                                mode='lines',  # Use 'markers' for scatter plot
-            #                                marker=dict(
-            #                                    color=grouped_df['da_score'],
-            #                                    # Color of markers based on da_score values
-            #                                    colorscale='magma',  # You can choose any supported colorscale
-            #
-            #                                ))
+
+            oned_array = np.ones(len(grouped_df['date']))
+            output_results_after_initial_run_date = deviation_data_diff.mean(axis=1).mean() * oned_array
+            first_record_date = grouped_df.iloc[0, 0]
+            dates_after_initial_run = sum(deviation_data_diff.columns.date > first_record_date)
+            if dates_after_initial_run > 0:
+                results_after_initial_run = deviation_data_diff.iloc[:, -dates_after_initial_run:]
+                mean_after_initial_run = round(results_after_initial_run.mean(axis=1).mean(), 3)
+                output_results_after_initial_run_date = mean_after_initial_run * oned_array
 
             history_score_fig = go.Bar(
                 x=grouped_df['date'],
@@ -455,8 +489,17 @@ def generate_app(cluster):
                     cmin=0,
                     cmax=1,  # Set the color of the bars based on the da_score
                     colorscale='Turbo',  # Or any other color scale that you find eye-friendly
-                )
+                ),
+                customdata=output_results_after_initial_run_date,
+                hovertemplate='Date: %{x}<br>' +
+                              'DA Score: %{y}<br>' +
+                              'Real mean: %{customdata}<extra></extra>'
             )
+
+            # There might be a difference between bar value from database and
+            # real mean even if the first forecast was over 128 periods.
+            # Its happening due to group_by_history_score(selected_df) which
+            # is taking the minimum value per a grouped index for a particular day.
 
             div_fig = go.Heatmap(z=deviation_data.values,
                                  x=deviation_data.columns,
@@ -476,7 +519,7 @@ def generate_app(cluster):
                 colorscale='BuGn',
                 showscale=False,
                 text=text_for_hover,
-                hovertemplate='Date: %{x}<br>Lag: %{y} (%{z})<br>' +
+                hovertemplate='Date: %{x}<br>%{y} (%{z})<br>' +
                               'Lag mean: %{text}<extra></extra>'
             )
 
@@ -498,4 +541,6 @@ def generate_app(cluster):
     free_port = find_free_port(1024, 65535)
 
     playsound(sound_path)
+    t2 = dt.datetime.now()
+    print(f'Whole process took... {t2-t1}')
     app.run_server(debug=False, port=free_port)

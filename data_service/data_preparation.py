@@ -2,8 +2,7 @@ import pandas_ta as ta
 import pandas as pd
 import numpy as np
 import requests
-from collections import OrderedDict
-import traceback
+import datetime as dt
 from data_service.vendors_data import yahoo_downloader as yd
 from data_service.vendors_data import binance_downloader as bd
 from data_service.vendors_data.av_downloader import AVDownloader
@@ -13,18 +12,19 @@ from data_service.vendors_data.meteo_downloader import get_daily_meteo
 
 
 class DataPreparation:
-    def __init__(self, asset, df_type, source, interval, input_length):
+    def __init__(self, asset, df_type, source, interval, input_length, short=False):
         self.asset = asset
         self.type = df_type
         self.past = input_length
         self.source = source
         self.interval = interval
+        self.is_short = short
 
     def _download_prices(self):
         if self.source == 'Yahoo' or self.source == 'Y':
             df = yd.downloader(self.asset, self.interval)
         if self.source == 'Binance' or self.source == 'B':
-            df = bd.downloader(self.asset, self.interval)
+            df = bd.downloader(self.asset, self.interval, self.is_short)
         if self.source == 'AV' or self.source == 'A':
             data = AVDownloader()
 
@@ -157,8 +157,8 @@ class DataPreparation:
                 l = int(input_length[0])
 
             l_s = int(l / 2)  # Calculate the shorter window (l_s) for SMA SMALL
-            l_ss = int(l/4)
-            l_sss = int(l/8)
+            l_ss = int(l / 4)
+            l_sss = int(l / 8)
 
             # Copy the input DataFrame
             tech_dataset = df.copy()
@@ -195,23 +195,27 @@ class DataPreparation:
             # Calculate German-Glass Volatility
 
             gks = ((np.log(df['High']) - np.log(df['Low'])) ** 2) / 2 - (2 * np.log(2) - 1) * (
-                        (np.log(df['Close']) - np.log(df['Open'])) ** 2)
+                    (np.log(df['Close']) - np.log(df['Open'])) ** 2)
             gks_df = pd.DataFrame(gks, columns=['GKS'])
 
-            if isinstance(input_length,list):
+            if isinstance(input_length, list):
                 il = input_length[0]
             else:
                 il = input_length
-            bb = ta.bbands(close=df['Close'], length=(int(il)))[[f'BBL_{str(il)}_2.0',f'BBM_{str(il)}_2.0',f'BBU_{str(il)}_2.0']]
+            bb = ta.bbands(close=df['Close'], length=(int(il)))[
+                [f'BBL_{str(il)}_2.0', f'BBM_{str(il)}_2.0', f'BBU_{str(il)}_2.0']]
             bb_halved = ta.bbands(close=df['Close'], length=int((int(il) / 2)))[
-                [f'BBL_{str(int((int(il)/2)))}_2.0', f'BBM_{str(int((int(il)/2)))}_2.0', f'BBU_{str(int((int(il)/2)))}_2.0']]
+                [f'BBL_{str(int((int(il) / 2)))}_2.0', f'BBM_{str(int((int(il) / 2)))}_2.0',
+                 f'BBU_{str(int((int(il) / 2)))}_2.0']]
             bb_quarter = ta.bbands(close=df['Close'], length=int((int(il) / 4)))[
-                [f'BBL_{str(int((int(il)/4)))}_2.0', f'BBM_{str(int((int(il)/4)))}_2.0', f'BBU_{str(int((int(il)/4)))}_2.0']]
+                [f'BBL_{str(int((int(il) / 4)))}_2.0', f'BBM_{str(int((int(il) / 4)))}_2.0',
+                 f'BBU_{str(int((int(il) / 4)))}_2.0']]
             atr = ta.atr(df['High'], df['Low'], df['Close'], length=int(il))
-            atr_halved = ta.atr(df['High'], df['Low'], df['Close'], length=int(int(il)/2))
-            atr_quarter = ta.atr(df['High'], df['Low'], df['Close'], length=int(int(il)/4))
+            atr_halved = ta.atr(df['High'], df['Low'], df['Close'], length=int(int(il) / 2))
+            atr_quarter = ta.atr(df['High'], df['Low'], df['Close'], length=int(int(il) / 4))
 
-            df_tech_ind = pd.concat([df_tech_ind, gks_df, bb, bb_halved, bb_quarter, atr, atr_halved, atr_quarter], axis=1)
+            df_tech_ind = pd.concat([df_tech_ind, gks_df, bb, bb_halved, bb_quarter, atr, atr_halved, atr_quarter],
+                                    axis=1)
             # Remove rows with missing values
             df_tech_ind.dropna(inplace=True)
 
@@ -228,7 +232,7 @@ class DataPreparation:
                 for x in mc_tables.keys():
                     df = pd.concat([df, mc_tables[x]], axis=1)
                 df.dropna(inplace=True)
-                if len(df) < 2000:
+                if len(df) < 2000 and self.is_short == False:
                     raise Exception(
                         'After merging macro table the input length became smaller than required minimum')
             else:
@@ -239,7 +243,7 @@ class DataPreparation:
             return get_daily_meteo()
 
         def crypto_benchmark():
-            return bd.downloader('BTC-USD', self.interval)
+            return bd.downloader('BTC-USD', self.interval, self.is_short)
 
         def fundamentals(asset):
             """"
@@ -290,15 +294,13 @@ class DataPreparation:
                 'crypto_sentiment_daily': crypto_sentiment_daily,
                 'ranked_crypto_sentiment_daily': ranked_crypto_sentiment_daily,
                 'crypto_benchmark': lambda: crypto_benchmark()[['Close']].rename(columns={'Close': 'BTC-USD Close'}),
-                'meteo': meteo,
             }
 
             # Iterate over the dictionary, try to call each function and store the result in df_dict
             for key, function in functions_to_call.items():
                 try:
                     # For functions that don't take 'df' as an argument
-                    if key in ['senti', 'crypto_sentiment_daily', 'ranked_crypto_sentiment_daily', 'crypto_benchmark',
-                               'meteo']:
+                    if key in ['senti', 'crypto_sentiment_daily', 'ranked_crypto_sentiment_daily', 'crypto_benchmark']:
                         df_dict[key] = function()
                     else:  # For all other functions, pass 'df' as an argument
                         df_dict[key] = function(df)
@@ -324,10 +326,22 @@ class DataPreparation:
             # Remove duplicated columns after the join
             df = df_final.loc[:, ~df_final.columns.duplicated()]
 
-
         first_column = df.pop('Close')
         df.insert(0, 'Close', first_column)
 
         if self.type == 'Custom':
             df['Pct_Change/Volume'] = 10 - (df['Close'].pct_change() * 100 / np.log(df['Volume']))
         return df
+
+
+if __name__ == '__main__':
+    t1 = dt.datetime.now()
+    df_long = DataPreparation('ETH-USD', 'Custom', 'B', '1d', 100)._download_prices()
+    t2 = dt.datetime.now()
+    delta_full = t2 -t1
+
+    t1 = dt.datetime.now()
+    df_short = DataPreparation('ETH-USD', 'Custom', 'B', '1d', 100, True)._download_prices()
+    t2 = dt.datetime.now()
+    delta_short = t2 -t1
+    q = 1

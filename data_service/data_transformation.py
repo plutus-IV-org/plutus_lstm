@@ -5,29 +5,29 @@ import numpy as np
 
 def _data_normalisation(df, is_targeted: bool = False):
     """
-    1.Creating daily changes
-    2.Taking ln from dc
+    1. Creating daily changes
+    2. Taking ln from dc
     """
     if is_targeted:
         column_to_add = df['Close'].rename('Target')
+
     add_timestamp = False
     if 'timestamp_int' in df.columns:
-        columns = df.columns.tolist()
-        columns.remove('timestamp_int')
         df_to_add = df['timestamp_int']
-        df = df[columns]
+        df = df.drop(columns=['timestamp_int'])
         add_timestamp = True
+
     df.replace(0, 1, inplace=True)
-    df = (df / df.shift()).fillna(value=1)
-    for x in df.columns:
-        val = []
-        for y in df[x].values:
-            val.append(np.log(y))
-        df[x] = val
+    df = (df / df.shift()).fillna(1)
+
+    # Use vectorized operations for logarithms
+    df = np.log(df)
+
     if is_targeted:
         df = pd.concat([df, column_to_add], axis=1)
     if add_timestamp:
         df = pd.concat([df, df_to_add], axis=1)
+
     return df
 
 
@@ -78,11 +78,30 @@ def _data_denormalisation(array, df, n_future, testY, break_point=True, is_targe
     return array_copy
 
 
+def array_maker(input_list):
+    # Find the maximum length of the subarrays
+    max_length = max([len(subarray) for subarray in input_list])
+    # Pad the smaller subarrays with NaN values
+    padded_list = []
+    for subarray in input_list:
+        if len(subarray) == 0:
+            padded_list.append([np.nan] * max_length)
+        else:
+            padded_list.append(np.concatenate([subarray, [np.nan] * (max_length - len(subarray))]))
+    # Convert the padded list to a NumPy array
+    array = np.array(padded_list, dtype=float)
+    return array
+
+
 def _split_data(df: pd.DataFrame, future: int, past: int, break_point=True, is_targeted: bool = False):
     n_future = future
     n_past = past
-    dataset_train = df.iloc[:int(df.shape[0] * 0.8), :]
-    dataset_test = df.iloc[int(df.shape[0] * 0.8) - n_past - 1:]
+    if break_point:
+        dataset_train = df.iloc[:int(df.shape[0] * 0.8), :]
+        dataset_test = df.iloc[int(df.shape[0] * 0.8):, :]
+    else:
+        dataset_train = df.iloc[:int(df.shape[0] * 0.35), :]
+        dataset_test = df.iloc[int(df.shape[0] * 0.35):, :]
 
     def fractioning(df: pd.DataFrame, break_point: bool, is_targeted: bool = False):
         train_x, train_y = [], []
@@ -121,23 +140,33 @@ def _split_data(df: pd.DataFrame, future: int, past: int, break_point=True, is_t
     train_x, train_y = fractioning(dataset_train, break_point, is_targeted)
     test_x, test_y = fractioning(dataset_test, break_point, is_targeted)
 
-    def array_maker(input_list):
-        # Find the maximum length of the subarrays
-        max_length = max([len(subarray) for subarray in input_list])
-        # Pad the smaller subarrays with NaN values
-        padded_list = []
-        for subarray in input_list:
-            if len(subarray) == 0:
-                padded_list.append([np.nan] * max_length)
-            else:
-                padded_list.append(np.concatenate([subarray, [np.nan] * (max_length - len(subarray))]))
-        # Convert the padded list to a NumPy array
-        array = np.array(padded_list, dtype=float)
-        return array
-
     trainX = np.array(train_x, dtype=float)
     trainY = array_maker(train_y)
     testX = np.array(test_x, dtype=float)
     testY = array_maker(test_y)
 
     return trainX, trainY, testX, testY
+
+
+def partial_data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = False):
+    test_x, test_y = [], []
+    df = df.copy()
+    df.reset_index(drop=True, inplace=True)
+    for x in range(past, len(df)):
+        if is_targeted:
+            input_val = df.loc[x - past:x, :].drop(columns=['Target']).values
+            output_val = df.iloc[x + 1:x + future + 1, :][
+                             'Target'] - df.iloc[x, :]['Target']
+            output_val[output_val > 0] = 1
+            output_val[output_val <= 0] = 0
+        else:
+            input_val = df.loc[x - past:x, :].values
+            output_val = df.iloc[x + 1:x + future + 1, 0].values
+
+        test_x.append(input_val)
+        test_y.append(output_val)
+
+    testX = np.array(test_x, dtype=float)
+    testY = array_maker(test_y)
+
+    return testX, testY

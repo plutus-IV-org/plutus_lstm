@@ -8,12 +8,15 @@ from db_service.SQLite import directional_accuracy_history_load
 from Const import DA_TABLE
 from utilities.metrics import _directional_accuracy
 from Const import Favorite, ShortsBatches, LongsBatches, ModelBatches
+from app_service.candles_service import get_technical_data , create_candles_plot
 from typing import List
 import re
 
+def is_crypto_asset(name):
+    return '-USD' in name
 
 def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_window,
-              rolling_period, zscore_lvl):
+              rolling_period, zscore_lvl, candles_toggle):
     """
     Create a main price plot for a specified asset using Plotly.
 
@@ -26,11 +29,18 @@ def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_wind
     - fig (go.Figure): The Plotly figure object.
     - df (pd.DataFrame): The updated DataFrame with extended dates.
     """
+    if candles_toggle == 0:
+        # Extracting asset-specific data from the provided DataFrame
+        df = data[asset_name]
+        x = df.index
+        y = df.iloc[:, 0]
+    else:
+        name, interval = asset_name.split('_')
+        if is_crypto_asset(asset_name):
+            df = get_technical_data(name,interval, 'Binance').iloc[-128:,:]
+        else:
+            df = get_technical_data(name, interval).iloc[-128:, :]
 
-    # Extracting asset-specific data from the provided DataFrame
-    df = data[asset_name]
-    x = df.index
-    y = df.iloc[:, 0]
 
     # Calculate time differences between consecutive entries to find the most common interval
     time_diffs = df.index.to_series().diff()
@@ -69,27 +79,29 @@ def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_wind
         hoverinfo_setting = None
         hovertemplate_setting = 'Date: %{x} <br>Price: %{y:$.4f}<extra></extra>'
 
-    # Creating the plot with the configuration settings
-    fig = go.Figure(data=go.Scatter(
-        x=x,
-        y=y,
-        connectgaps=True,  # Connects gaps in the data with lines
-        name="Price",
-        mode='lines+markers',  # Combines line and marker styles
-        hoverinfo=hoverinfo_setting,
-        hovertemplate=hovertemplate_setting
-    ))
+    if candles_toggle == 0:
+        # Creating the plot with the configuration settings
+        fig = go.Figure(data=go.Scatter(
+            x=x,
+            y=y,
+            connectgaps=True,  # Connects gaps in the data with lines
+            name="Price",
+            mode='lines+markers',  # Combines line and marker styles
+            hoverinfo=hoverinfo_setting,
+            hovertemplate=hovertemplate_setting
+        ))
 
-    # Styling the plot - setting line color and axes titles
-    fig.update_traces(line_color='white')
-    fig.update_layout(
-        xaxis_title="Date",
-        yaxis_title="Price",
-        xaxis_range=[df.index.min(), max_date],  # Sets the range of x-axis
-        title_text=asset_name,
-        uirevision="Don't change"  # Preserves the state of the plot (like zoom level) across updates
-    )
-
+        # Styling the plot - setting line color and axes titles
+        fig.update_traces(line_color='white')
+        fig.update_layout(
+            xaxis_title="Date",
+            yaxis_title="Price",
+            xaxis_range=[df.index.min(), max_date],  # Sets the range of x-axis
+            title_text=asset_name,
+            uirevision="Don't change"  # Preserves the state of the plot (like zoom level) across updates
+        )
+    else:
+        fig = create_candles_plot(df,asset_name)
     if anomalies_toggle == 1:
         copy_df = df.copy()
         copy_df.columns = ['Close']
@@ -383,7 +395,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
         direction_differences = crop_anomalies(direction_differences, red_timestamps, grey_timestamps)
         auxiliary_directions = crop_anomalies(auxiliary_directions, red_timestamps, grey_timestamps)
     # Calculate directional accuracy and other statistics
-    result_df, trades_coverage_df = _directional_accuracy(auxiliary_directions, direction_differences,
+    result_df, trades_coverage_df  = _directional_accuracy(auxiliary_directions, direction_differences,
                                                           {'future_days': future_days}, is_targeted=targeted,
                                                           reshape_required=False)
 
@@ -437,7 +449,7 @@ def select_dictionaries(full_dict: dict, key_word: str) -> dict:
 
 def group_by_history_score(df: pd.DataFrame) -> pd.DataFrame:
     df['date'] = pd.to_datetime(df['date']).dt.date
-    output_df = df.groupby(['date', 'model_name']).min().reset_index()
+    output_df = df.groupby(['date', 'model_name']).last().reset_index()
     return output_df
 
 

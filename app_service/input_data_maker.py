@@ -1,4 +1,5 @@
 import pandas as pd
+import datetime as dt
 from data_service.data_recreator import data_preparation
 from utilities.cluster_common_line import compute_averages
 
@@ -15,6 +16,7 @@ def generate_data(cluster):
             keys.append(x)
 
 
+        t1 = dt.datetime.now()
         keys, prepared_data = compute_averages(keys, prepared_data)
 
         for x in keys:
@@ -30,7 +32,8 @@ def generate_data(cluster):
             asset_prediction = pd.DataFrame(prepared_data[x][1])
             asset_prediction_dic[x] = asset_prediction
             asset_price_dic[asset_name + "_" + interval] = asset_price
-
+        t2 = dt.datetime.now()
+        print(f'Computing averages...{t2-t1}')
         return asset_prediction_dic, asset_price_dic, asset_names, interval
 
     else:

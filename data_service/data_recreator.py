@@ -4,7 +4,7 @@ import numpy as np
 import os
 from tensorflow.keras.models import Sequential, load_model
 from data_service.data_preparation import DataPreparation
-from data_service.data_transformation import _data_normalisation, _data_denormalisation, _split_data
+from data_service.data_transformation import _data_normalisation, _data_denormalisation, partial_data_split, _split_data
 from utilities.use_mean_unitilities import apply_means
 
 pd.options.mode.chained_assignment = None
@@ -34,30 +34,35 @@ def directional_loss(y_true, y_pred):
 
 
 def data_preparation(cluster: str):
-    t1 = dt.datetime.now()
     sl = _slash_conversion()
     interval_lst = []
     path = _ROOT_PATH() + sl + 'vaults' + sl + 'cluster' + sl + cluster
     models_names = []
     scope_lst = []
     for m in os.listdir(path):
-        scope_lst.append(m.split('_')[0:2] + [m.split('_')[5]])
+        scope_lst.append(m.split('_')[0:2] + [m.split('_')[5]] + [m.split('_')[3]])
         models_names.append(m)
 
     # Store data for unique assets in a dictionary
     unique_assets = {}
+    t1 = dt.datetime.now()
     for a, b in zip(models_names, scope_lst):
-        asset_name = b[0] + '_' + b[1] + '_' + b[2]
+
+        asset_name = b[0] + '_' + b[1] + '_' + b[2] + '_' + b[3]
         if asset_name not in unique_assets:
-            dp = DataPreparation(asset_name, b[1], a.split('_')[9], a.split('_')[5], a.split('_')[3])
+            dp = DataPreparation(asset_name, b[1], a.split('_')[9], a.split('_')[5], a.split('_')[3], True)
             unique_assets[asset_name] = dp._download_prices()
 
+    t2 = dt.datetime.now()
+    print(f'Data has been downloaded for...{t2 - t1}')
+    t1 = dt.datetime.now()
     # Common table required as the 1st output form dict
     ct = pd.DataFrame()
     # Creating main dict
     pred_saver = {}
+    prepared_data_input_storage = [(pd.DataFrame(), 10, 1, np.zeros(1), np.zeros(1))]
     for a, b in zip(models_names, scope_lst):
-        asset_name = b[0] + '_' + b[1] + '_' + b[2]
+        asset_name = b[0] + '_' + b[1] + '_' + b[2] + '_' + b[3]
         data = unique_assets[asset_name]
         if b[1] == "Custom":
             lstm_research_dict_path = path + sl + a + sl + 'lstm_research_dict.pickle'
@@ -77,8 +82,8 @@ def data_preparation(cluster: str):
                 data = data[custom_indicators]
                 data = data.dropna()
 
-            if len(data) < 1500:
-                raise Exception('Too short selected data')
+            # if len(data) < 1500:
+            #     raise Exception('Too short selected data')
         # data = _download_prices(b[0], 'Close')
         sep = a.split('_')
         f_d = int(sep[4])
@@ -87,16 +92,28 @@ def data_preparation(cluster: str):
         common_table = data[["Close"]].rename(columns={'Close': sep[0]})
         ct = pd.concat([ct, common_table], axis=1)
         df = data.dropna()
-        df_prices = df.copy().iloc[-1000:]
+        max_past = max([int(model.split('_')[3]) for model in models_names])
+        df_prices = df.copy().iloc[-(max_past + 130):]
 
         if a.split('_')[-1] == 'T':
             targeted = True
         else:
             targeted = False
         # Normalisation
+        # for element in prepared_data_input_storage:
+        #     if df_prices.equals(element[0]) and p_d == element[1] and f_d == element[2]:
+        #         testX, testY = element[3], element[4]
+        #     else:
+        #         normalised_data = _data_normalisation(df_prices, is_targeted=targeted)
+        #         # trainX, trainY, testX, testY = _split_data(normalised_data, f_d, p_d, break_point=False, is_targeted=targeted)
+        #         testX, testY = partial_data_split(normalised_data, f_d, p_d, is_targeted=targeted)
+        #         prepared_data_input_storage.append((df_prices, p_d, f_d, testX, testY))
         normalised_data = _data_normalisation(df_prices, is_targeted=targeted)
-        trainX, trainY, testX, testY = _split_data(normalised_data, f_d, p_d, break_point=False, is_targeted=targeted)
+        # trainX, trainY, testX, testY = _split_data(normalised_data, f_d, p_d, break_point=False, is_targeted=targeted)
+        testX, testY = partial_data_split(normalised_data, f_d, p_d, is_targeted=targeted)
+
         # Loading model
+
         absolute_path = path + '\\' + a + '\\LSTM.h5'
         try:
             model = load_model(absolute_path)
@@ -110,7 +127,7 @@ def data_preparation(cluster: str):
         else:
             con_tail = 0.5
         denormalised = _data_denormalisation(predictions.copy(), df_prices, f_d, testY, break_point=False,
-                                             is_targeted=targeted , confidence_lvl= con_tail)
+                                             is_targeted=targeted, confidence_lvl=con_tail)
         time_index = normalised_data.tail(len(denormalised)).index
         df_pred = pd.DataFrame(denormalised, index=time_index)
 
@@ -136,5 +153,5 @@ def data_preparation(cluster: str):
 
     t2 = dt.datetime.now()
     delta = t2 - t1
-    print(delta)
+    print(f'Data preparation ... {delta}')
     return pred_saver, interval_lst
