@@ -245,22 +245,6 @@ class DataPreparation:
         def crypto_benchmark():
             return bd.downloader('BTC-USD', self.interval, self.is_short)
 
-        def fundamentals(asset):
-            """"
-            bps = pd.read_pickle('bps800').loc['2011-01-01':, asset]
-            eps = pd.read_pickle('eps800').loc['2011-01-01':, asset]
-            dps = pd.read_pickle('dps800').loc['2011-01-01':, asset]
-            cps = pd.read_pickle('cps800').loc['2011-01-01':, asset]
-            tech_dataset = yf.download(asset, start='2011-01-01', end=dt.datetime.now(), progress=False)
-            close_prices = tech_dataset[['Close']]
-            close_prices.index.name = None
-            df = close_prices.copy()
-            df.dropna(inplace=True)
-            con = pd.concat([df,bps,eps,dps,cps], axis=1)
-            return con
-            """
-            pass
-
         if self.type == 'Close':
             df = close(df)
         elif self.type == 'Volume':
@@ -277,9 +261,6 @@ class DataPreparation:
             df_close = close(df).tz_localize(None)
             df_senti = 100 + senti(self.asset).tz_localize(None)
             df = pd.concat([df_close, df_senti], axis=1).dropna().copy()
-        elif self.type == 'Fundamentals':
-            df = fundamentals(df)
-
         else:
             df_dict = {}
             functions_to_call = {
@@ -338,10 +319,10 @@ if __name__ == '__main__':
     t1 = dt.datetime.now()
     df_long = DataPreparation('ETH-USD', 'Custom', 'B', '1d', 100)._download_prices()
     t2 = dt.datetime.now()
-    delta_full = t2 -t1
+    delta_full = t2 - t1
 
     t1 = dt.datetime.now()
     df_short = DataPreparation('ETH-USD', 'Custom', 'B', '1d', 100, True)._download_prices()
     t2 = dt.datetime.now()
-    delta_short = t2 -t1
+    delta_short = t2 - t1
     q = 1

@@ -1,5 +1,6 @@
 from tensorflow.keras.metrics import RootMeanSquaredError, mean_absolute_percentage_error
 from utilities.directiona_accuracy_utililities import weights
+import tensorflow as tf
 import numpy as np
 import pandas as pd
 
@@ -21,6 +22,9 @@ def _mape(prediction, actual):
     Mean_absolute_percentage_error estimates the size of
     the error computed as the relative average of the error
     """
+
+    actual = tf.cast(actual, dtype=tf.float32)
+    prediction = tf.cast(prediction, dtype=tf.float32)
     return mean_absolute_percentage_error(actual, prediction).numpy().mean()
 
 

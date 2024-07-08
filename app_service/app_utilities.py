@@ -8,12 +8,14 @@ from db_service.SQLite import directional_accuracy_history_load
 from Const import DA_TABLE
 from utilities.metrics import _directional_accuracy
 from Const import Favorite, ShortsBatches, LongsBatches, ModelBatches
-from app_service.candles_service import get_technical_data , create_candles_plot
+from app_service.candles_service import get_technical_data, create_candles_plot
 from typing import List
 import re
 
+
 def is_crypto_asset(name):
     return '-USD' in name
+
 
 def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_window,
               rolling_period, zscore_lvl, candles_toggle):
@@ -37,10 +39,9 @@ def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_wind
     else:
         name, interval = asset_name.split('_')
         if is_crypto_asset(asset_name):
-            df = get_technical_data(name,interval, 'Binance').iloc[-128:,:]
+            df = get_technical_data(name, interval, 'Binance').iloc[-128:, :]
         else:
             df = get_technical_data(name, interval).iloc[-128:, :]
-
 
     # Calculate time differences between consecutive entries to find the most common interval
     time_diffs = df.index.to_series().diff()
@@ -101,7 +102,7 @@ def main_plot(data, asset_name, hover_or_click, anomalies_toggle, anomalies_wind
             uirevision="Don't change"  # Preserves the state of the plot (like zoom level) across updates
         )
     else:
-        fig = create_candles_plot(df,asset_name)
+        fig = create_candles_plot(df, asset_name)
     if anomalies_toggle == 1:
         copy_df = df.copy()
         copy_df.columns = ['Close']
@@ -395,7 +396,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
         direction_differences = crop_anomalies(direction_differences, red_timestamps, grey_timestamps)
         auxiliary_directions = crop_anomalies(auxiliary_directions, red_timestamps, grey_timestamps)
     # Calculate directional accuracy and other statistics
-    result_df, trades_coverage_df  = _directional_accuracy(auxiliary_directions, direction_differences,
+    result_df, trades_coverage_df = _directional_accuracy(auxiliary_directions, direction_differences,
                                                           {'future_days': future_days}, is_targeted=targeted,
                                                           reshape_required=False)
 
@@ -431,7 +432,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
     return deviation_data, deviation_data_diff
 
 
-def select_dictionaries(full_dict: dict, key_word: str) -> dict:
+def select_dictionaries_by_type(full_dict: dict, key_word: str) -> dict:
     # Use dictionary comprehension to filter entries where the key contains key_word
     if key_word == 'all':
         return full_dict
@@ -445,6 +446,29 @@ def select_dictionaries(full_dict: dict, key_word: str) -> dict:
         return dict
     else:
         return {key: value for key, value in full_dict.items() if key_word in key}
+
+
+def select_dictionaries_by_interval(full_dict: dict, interval_length: str) -> dict:
+    # Return the entire dictionary if it is empty or if interval_length is 'all'
+    if len(full_dict) == 0 or interval_length == 'all':
+        return full_dict
+    else:
+        # Initialize an empty dictionary to store the filtered entries
+        output_dict = {}
+        # Iterate through the dictionary keys
+        for key in full_dict.keys():
+            # Split the key into parts
+            key_list = key.split('_')
+            # Check if the interval_length is in the key parts
+            if interval_length in key_list:
+                # Add the key-value pair to the output dictionary
+                output_dict[key] = full_dict[key]
+
+        # If no matching items were found, return the entire dictionary
+        if len(output_dict) == 0:
+            return full_dict
+        else:
+            return output_dict
 
 
 def group_by_history_score(df: pd.DataFrame) -> pd.DataFrame:
@@ -562,6 +586,16 @@ def filter_top_ranked_models(ranked_df: pd.DataFrame, top_n: int) -> pd.DataFram
 
     return top_ranked_df
 
+
+def get_intervals(asset_dict: dict) -> List:
+    output_list = ['All']
+    if len(asset_dict.keys())>0:
+        for name in set(asset_dict.keys()):
+            if 'average' in name:
+                output_list.append(name.split('_')[2])
+            else:
+                output_list.append(name.split('_')[4])
+    return list(set(output_list))
 
 if __name__ == '__main__':
     df = filter_loaded_history_score('ETH-USD_All', 'simple-average')

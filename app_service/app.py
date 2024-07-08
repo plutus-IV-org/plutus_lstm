@@ -22,6 +22,7 @@ log.disabled = True
 sound_path = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\run_command_report_generated.mp3"
 
 
+
 def find_free_port(start_port, end_port):
     for port in range(start_port, end_port):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
@@ -35,7 +36,24 @@ def generate_app(cluster):
     t1 = dt.datetime.now()
     app = JupyterDash(external_stylesheets=[dbc.themes.DARKLY])
     # app = Dash(__name__)
-    asset_predictions, asset_prices, asset_names, interval = generate_data(cluster)
+    if cluster == 'dev':
+        import json
+        with open(r'C:\Users\ilsbo\PycharmProjects\plutus_lstm\vaults\data_vault\dev_output_data.json',
+                  'r') as json_file:
+            data = json.load(json_file)
+        asset_predictions = {k: pd.read_json(v, orient='split') for k, v in data['asset_predictions'].items()}
+        if isinstance(data['asset_prices'], str):
+            asset_prices = pd.read_json(data['asset_prices'], orient='split')
+        else:
+            asset_prices = {k: pd.read_json(v, orient='split') for k, v in data['asset_prices'].items()}
+
+        asset_names = data['asset_names']
+        interval = data['interval']
+    else:
+        asset_predictions, asset_prices, asset_names, interval = generate_data(cluster)
+    allowed_intervals = get_intervals(asset_predictions)
+    allowed_intervals.sort()
+    allowed_intervals.reverse()
     ap = asset_prices.copy()
     drop_down_assets = dcc.Dropdown(
         asset_names,
@@ -43,7 +61,16 @@ def generate_app(cluster):
         value=asset_names[0],
         id="assets_dropdown",
         style={'color': 'black',
-               'width': '50%'}
+               'width': '100%'}
+    )
+
+    drop_down_intervals = dcc.Dropdown(
+        allowed_intervals,
+        multi=False,
+        value='All',
+        id="assets_dropdown_intervals",
+        style={'color': 'black',
+               'width': '100%'}
     )
 
     combined_controls = html.Div([
@@ -157,15 +184,28 @@ def generate_app(cluster):
 
     tab1_content = dbc.Container(
         [
+
             html.H1("Prediction results"),
             html.Hr(),
 
             dbc.Row(
                 [
-                    dbc.Col(drop_down_assets, width=8),
-                ]),
-            html.Br(),
+                    # Column for asset dropdown with label
+                    dbc.Col([
+                        dbc.Label("Select Asset:", style={'font-size': '14px'}),
+                        drop_down_assets
+                    ], style={'padding-right': '10px', 'flex': '0 0 12%'}),  # Adjust width here
 
+                    # Column for interval dropdown with label
+                    dbc.Col([
+                        dbc.Label("Select Interval:", style={'font-size': '14px'}),
+                        drop_down_intervals
+                    ], style={'padding-left': '10px', 'flex': '0 0 9%'}),  # Adjust width here
+                ],
+                style={'display': 'flex', 'justifyContent': 'flex-start', 'align-items': 'center'}
+            ),
+
+            html.Br(),
             combined_controls,
             html.Br(),
 
@@ -268,6 +308,8 @@ def generate_app(cluster):
     app.layout = tabs
     app.title = "Plutus Forecast App!"
 
+
+
     # end
     @app.callback(
         Output('main_graph', 'figure'),
@@ -281,12 +323,15 @@ def generate_app(cluster):
             Input('rolling_period', 'value'),
             Input('zscore_lvl', 'value'),
             Input('all_averages_toggle', 'value'),
-            Input('candles_toggle', 'value')
+            Input('candles_toggle', 'value'),
+            Input('assets_dropdown_intervals', 'value')
         ],
         prevent_initial_call=False)
     def update_graph(asset_names, hover_data, click_data, hover_or_click, anomalies_toggle, anomalies_window,
-                     rolling_period, zscore_lvl, all_averages_toggle, candles_toggle):
-        selected_dict = select_dictionaries(asset_predictions, all_averages_toggle)
+                     rolling_period, zscore_lvl, all_averages_toggle, candles_toggle, interval_dropdown):
+
+        partially_selected_dict = select_dictionaries_by_type(asset_predictions, all_averages_toggle)
+        selected_dict = select_dictionaries_by_interval(partially_selected_dict, interval_dropdown)
         # Determine the interaction data based on the hover_or_click value
 
         fig, single_asset_price = main_plot(ap, asset_names, hover_or_click, anomalies_toggle, anomalies_window,
@@ -300,7 +345,6 @@ def generate_app(cluster):
                                  anomalies_toggle, anomalies_window,
                                  rolling_period, zscore_lvl, candles_toggle, fig, single_asset_price)
         return fig
-
 
     @app.callback(
         [
@@ -436,14 +480,16 @@ def generate_app(cluster):
             Input('anomalies_window', 'value'),
             Input('rolling_period', 'value'),
             Input('zscore_lvl', 'value'),
-            Input('all_averages_toggle', 'value')
+            Input('all_averages_toggle', 'value'),
+            Input('assets_dropdown_intervals', 'value')
         ],
         prevent_initial_call=False)
     def update_statistic_graph(asset_name, anomalies_toggle, anomalies_window, rolling_period, zscore_lvl,
-                               all_averages_toggle):
+                               all_averages_toggle, interval_dropdown):
 
         relevant_models = []
-        selected_dict = select_dictionaries(asset_predictions, all_averages_toggle)
+        partially_selected_dict = select_dictionaries_by_type(asset_predictions, all_averages_toggle)
+        selected_dict = select_dictionaries_by_interval(partially_selected_dict, interval_dropdown)
         for key, val in selected_dict.items():
             if re.search(asset_name, key.split('_')[0] + "_" + key.split('_')[5]):
                 relevant_models.append(key)
@@ -542,5 +588,5 @@ def generate_app(cluster):
 
     playsound(sound_path)
     t2 = dt.datetime.now()
-    print(f'Whole process took... {t2-t1}')
+    print(f'Whole process took... {t2 - t1}')
     app.run_server(debug=False, port=free_port)

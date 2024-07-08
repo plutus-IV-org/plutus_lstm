@@ -58,6 +58,7 @@ def data_preparation(cluster: str):
     t1 = dt.datetime.now()
     # Common table required as the 1st output form dict
     ct = pd.DataFrame()
+    model_stop_watch = dt.timedelta(0)
     # Creating main dict
     pred_saver = {}
     prepared_data_input_storage = [(pd.DataFrame(), 10, 1, np.zeros(1), np.zeros(1))]
@@ -100,33 +101,24 @@ def data_preparation(cluster: str):
         else:
             targeted = False
         # Normalisation
-        # for element in prepared_data_input_storage:
-        #     if df_prices.equals(element[0]) and p_d == element[1] and f_d == element[2]:
-        #         testX, testY = element[3], element[4]
-        #     else:
-        #         normalised_data = _data_normalisation(df_prices, is_targeted=targeted)
-        #         # trainX, trainY, testX, testY = _split_data(normalised_data, f_d, p_d, break_point=False, is_targeted=targeted)
-        #         testX, testY = partial_data_split(normalised_data, f_d, p_d, is_targeted=targeted)
-        #         prepared_data_input_storage.append((df_prices, p_d, f_d, testX, testY))
         normalised_data = _data_normalisation(df_prices, is_targeted=targeted)
-        # trainX, trainY, testX, testY = _split_data(normalised_data, f_d, p_d, break_point=False, is_targeted=targeted)
         testX, testY = partial_data_split(normalised_data, f_d, p_d, is_targeted=targeted)
 
         # Loading model
-
         absolute_path = path + '\\' + a + '\\LSTM.h5'
+        time_model_init = dt.datetime.now()
         try:
             model = load_model(absolute_path)
-            predictions = model.predict(testX, verbose=0)
+            predictions = model.predict(testX[-126:], verbose=0)
         except:
             model = load_model(absolute_path, custom_objects={'directional_loss': directional_loss})
-            predictions = model.predict(testX, verbose=0)
-
+            predictions = model.predict(testX[-126:], verbose=0)
+        model_stop_watch += dt.datetime.now() - time_model_init
         if 'confidence_tail' in loaded_dict.keys():
             con_tail = float(loaded_dict['confidence_tail'])
         else:
             con_tail = 0.5
-        denormalised = _data_denormalisation(predictions.copy(), df_prices, f_d, testY, break_point=False,
+        denormalised = _data_denormalisation(predictions.copy(), df_prices, f_d, testY[-126:], break_point=False,
                                              is_targeted=targeted, confidence_lvl=con_tail)
         time_index = normalised_data.tail(len(denormalised)).index
         df_pred = pd.DataFrame(denormalised, index=time_index)
@@ -153,5 +145,6 @@ def data_preparation(cluster: str):
 
     t2 = dt.datetime.now()
     delta = t2 - t1
-    print(f'Data preparation ... {delta}')
+    print(f'{len(models_names)} models have been processed')
+    print(f'Data preparation took... {delta}, time spent on model computation...{model_stop_watch}')
     return pred_saver, interval_lst

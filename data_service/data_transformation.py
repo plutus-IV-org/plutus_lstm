@@ -44,17 +44,21 @@ def _data_denormalisation(array, df, n_future, testY, break_point=True, is_targe
                           confidence_lvl: float = 0.5
                           ):
     """
-    1.Deloging the values
-    2.Getting initial values to create closes
+    1. Delogging the values
+    2. Getting initial values to create closes
     """
     if is_targeted:
         confidence_rate_up = 1 - confidence_lvl
         confidence_rate_down = confidence_lvl
-        outcome_table = pd.DataFrame(array.copy())
-        outcome_table[outcome_table > confidence_rate_up] = 1
-        outcome_table[outcome_table < confidence_rate_down] = -1
-        outcome_table[abs(outcome_table) != 1] = 0
-        array_copy = outcome_table.values
+
+        # Create a DataFrame from the array without copying
+        outcome_table = pd.DataFrame(array)
+
+        # Apply vectorized conditions
+        array_copy = np.where(outcome_table > confidence_rate_up, 1,
+                                 np.where(outcome_table < confidence_rate_down, -1, 0))
+
+
     else:
         array_copy = array.copy()
         df = df[['Close']]
