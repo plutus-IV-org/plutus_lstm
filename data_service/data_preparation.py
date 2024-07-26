@@ -9,6 +9,9 @@ from data_service.vendors_data.av_downloader import AVDownloader
 from data_service.vendors_data.macro_downloader import mc_downloader as mc
 from data_service.vendors_data.sentiment_downloader import senti
 from data_service.vendors_data.meteo_downloader import get_daily_meteo
+from Const import CRYPTO_TICKERS, DAILY_CRYPTO_DATA_TABLE_LIST
+from db_service.SQLite import technical_data_load
+from Const import CUT_TAIL
 
 
 class DataPreparation:
@@ -21,9 +24,36 @@ class DataPreparation:
         self.is_short = short
 
     def _download_prices(self):
+        if self.source == 'M' or self.source == 'Manual':
+            import os
+            file_name = self.asset + '_' + self.interval + '.csv'
+            # Get the current working directory
+            current_directory = os.getcwd()
+            # Get the parent directory
+            parent_directory = os.path.dirname(current_directory)
+            file_directory = os.path.join(parent_directory, 'vaults', 'csv_source_vault', file_name)
+            if os.path.exists(file_directory):
+                print("The file exists.")
+                df = pd.read_csv(file_directory)
+                #TODO add pandas operations
+            else:
+                raise Exception("The file does not exist.")
         if self.source == 'Yahoo' or self.source == 'Y':
             df = yd.downloader(self.asset, self.interval)
         if self.source == 'Binance' or self.source == 'B':
+            # if self.asset.split('_')[0] in CRYPTO_TICKERS and self.interval == '1d':
+            #     table_index = CRYPTO_TICKERS.index(self.asset.split('_')[0])
+            #     table_name = DAILY_CRYPTO_DATA_TABLE_LIST[table_index]
+            #     print(f'For asset {self.asset} the daily data has been pulled from {table_name} ')
+            #     df = technical_data_load(table_name)
+            #     df['Time'] = df['Time'].astype('datetime64')
+            #     df = df.set_index('Time')
+            #     df = df.astype(float)
+            #     df.dropna(inplace=True)
+            #     if self.is_short:
+            #         df = df.tail(CUT_TAIL)
+            #     print(f'DB data has been cun by {CUT_TAIL} steps')
+            # else:
             df = bd.downloader(self.asset, self.interval, self.is_short)
         if self.source == 'AV' or self.source == 'A':
             data = AVDownloader()
@@ -243,7 +273,21 @@ class DataPreparation:
             return get_daily_meteo()
 
         def crypto_benchmark():
-            return bd.downloader('BTC-USD', self.interval, self.is_short)
+            if self.interval == '1d':
+                table_index = CRYPTO_TICKERS.index('BTC-USD')
+                table_name = DAILY_CRYPTO_DATA_TABLE_LIST[table_index]
+                print(f'For asset {self.asset} the daily data has been pulled from {table_name} ')
+                df = technical_data_load(table_name)
+                df['Time'] = df['Time'].astype('datetime64')
+                df = df.set_index('Time')
+                df = df.astype(float)
+                df.dropna(inplace=True)
+                if self.is_short:
+                    df = df.tail(CUT_TAIL)
+                print(f'DB data has been cun by {CUT_TAIL} steps')
+            else:
+                df = bd.downloader('BTC-USD', self.interval, self.is_short)
+            return df
 
         if self.type == 'Close':
             df = close(df)
@@ -325,4 +369,4 @@ if __name__ == '__main__':
     df_short = DataPreparation('ETH-USD', 'Custom', 'B', '1d', 100, True)._download_prices()
     t2 = dt.datetime.now()
     delta_short = t2 - t1
-    q = 1
+

@@ -1,6 +1,13 @@
 from enum import Enum
 
+CUT_COEFFICIENT = 15
+CUT_TAIL = 650
 DA_TABLE = 'da_history.db'
+DAILY_ETHEREUM_DATA_TABLE = 'daily_eth.db'
+DAILY_RIPPLE_DATA_TABLE = 'daily_xrp.db'
+DAILY_BITCOIN_DATA_TABLE = 'daily_btc.db'
+DAILY_CRYPTO_DATA_TABLE_LIST = [DAILY_ETHEREUM_DATA_TABLE, DAILY_RIPPLE_DATA_TABLE, DAILY_BITCOIN_DATA_TABLE]
+CRYPTO_TICKERS = ['ETH-USD', 'XRP-USD', 'BTC-USD']
 
 
 class ModelBatches(Enum):
@@ -57,9 +64,8 @@ class Favorite(Enum):
     third = 'Corn_Asian_elephant'
     fourth = 'Sea_green_Yeti'
     fifth = 'Olivine_Caiman_lizard'
-    sixth = 'Tan_Clown_fish' #  10/01/24 1h price, rsi Tested not over-fitted model
-    seventh = 'Teal_Quail' #21/01/23 1h 5 layers with low lr and good val loss (<loss)
-
+    sixth = 'Tan_Clown_fish'  # 10/01/24 1h price, rsi Tested not over-fitted model
+    seventh = 'Teal_Quail'  # 21/01/23 1h 5 layers with low lr and good val loss (<loss)
 
 # class ModelBatches(Enum):
 #     _1d_10 = {

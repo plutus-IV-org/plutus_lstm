@@ -1,6 +1,7 @@
 from binance.exceptions import BinanceAPIException
 from time import sleep
 from binance import Client, ThreadedWebsocketManager, ThreadedDepthCacheManager
+from Const import CUT_COEFFICIENT
 
 api_key = "TJFbxUadj3OrleUMNU9VccxmAseDncRoq8ZPxZxBrNjgeYt8AKOQq75GKio6JJ8z"
 api_secret = "VRE0XkDH1hkszXdm5ntYLI19GQE6Eu2dSwRNkqoZZY0sreWBEJLGZGGZWY9RCFRi"
@@ -13,7 +14,7 @@ def downloader(asset, interval, short=False):
     # valid intervals: 1m,5m,15m,30m,1h,1d,5d,1wk,1mo
     k = 1
     if short:
-        k = 15
+        k = CUT_COEFFICIENT
     try:
         ticker, cur = asset.split('-')
     except:
@@ -44,7 +45,7 @@ def downloader(asset, interval, short=False):
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_5MINUTE, back, now))
     elif interval == '15m':
         now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
-        #60
+        # 60
         back = (dt.datetime.now() - dt.timedelta(int(105 / k))).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -67,7 +68,7 @@ def downloader(asset, interval, short=False):
                 client.get_historical_klines(symbol, Client.KLINE_INTERVAL_30MINUTE, back, now))
     elif interval == '1h':
         now = dt.datetime.now().strftime("%d %B, %Y %H:%M:%S")
-        #240
+        # 240
         back = (dt.datetime.now() - dt.timedelta(int(420 / k))).strftime("%d %B, %Y")
         try:
             df = pd.DataFrame(
@@ -130,3 +131,7 @@ def downloader(asset, interval, short=False):
     #     raw_data = raw_data.tail(cut_length)
     print(f'Output length is {len(raw_data)}')
     return raw_data
+
+
+if __name__ == '__main__':
+    df = downloader('ETH-USD', '1d')
