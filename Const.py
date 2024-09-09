@@ -8,7 +8,7 @@ DAILY_RIPPLE_DATA_TABLE = 'daily_xrp.db'
 DAILY_BITCOIN_DATA_TABLE = 'daily_btc.db'
 DAILY_CRYPTO_DATA_TABLE_LIST = [DAILY_ETHEREUM_DATA_TABLE, DAILY_RIPPLE_DATA_TABLE, DAILY_BITCOIN_DATA_TABLE]
 CRYPTO_TICKERS = ['ETH-USD', 'XRP-USD', 'BTC-USD']
-
+SHARE_DRIVE_DIR = "G:\My Drive\Plutus_reports"
 
 class ModelBatches(Enum):
     _1d_10 = {'Corn_Asian_elephant': 0.25,

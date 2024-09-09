@@ -308,7 +308,7 @@ def crop_anomalies(df: pd.DataFrame, red_timestamps: List[pd.Timestamp],
 
 
 def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, anomalies_toggle, anomalies_window,
-                         rolling_period, zscore_lvl):
+                         rolling_period, zscore_lvl, is_dev: bool = False):
     """
     Create auxiliary dataframes for analysis of asset prices and predictions.
 
@@ -423,7 +423,8 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
         print('___DIRECTIONAL_ACCURACY_WITHOUT_POST_ANOMALIES_TIMESTAMPS___')
     print(f'Directional accuracy for model {model}')
     print(directional_accuracy_score.values)
-    save_directional_accuracy_score(model, directional_accuracy_score)
+    if not is_dev:
+        save_directional_accuracy_score(model, directional_accuracy_score)
 
     # Prepare and return data
     deviation_data_diff = pd.DataFrame(combined_directions.T, columns=auxiliary_df.loc[matching_indexes].index)
