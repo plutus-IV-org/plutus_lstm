@@ -4,6 +4,7 @@ Module for running daily reports.
 
 import os
 import sys
+import glob
 import shutil
 
 # Set the working directory to two levels up
@@ -34,3 +35,16 @@ prepare_output_report(abs_path, stored_data, output_path)
 # Copy the file to the Google Drive folder
 destination_file_path = os.path.join(SHARE_DRIVE_DIR, os.path.basename(output_path))
 shutil.copy(output_path, destination_file_path)
+
+# Delete temporary png
+glob.glob(os.path.join(os.getcwd(), "*.png"))
+png_files = glob.glob(os.path.join(os.getcwd(), "*.png"))
+
+# Delete each file
+for file in png_files:
+    try:
+        os.remove(file)
+        print(f"Deleted: {file}")
+    except Exception as e:
+        print(f"Error deleting {file}: {e}")
+

@@ -41,20 +41,20 @@ class DataPreparation:
         if self.source == 'Yahoo' or self.source == 'Y':
             df = yd.downloader(self.asset, self.interval)
         if self.source == 'Binance' or self.source == 'B':
-            # if self.asset.split('_')[0] in CRYPTO_TICKERS and self.interval == '1d':
-            #     table_index = CRYPTO_TICKERS.index(self.asset.split('_')[0])
-            #     table_name = DAILY_CRYPTO_DATA_TABLE_LIST[table_index]
-            #     print(f'For asset {self.asset} the daily data has been pulled from {table_name} ')
-            #     df = technical_data_load(table_name)
-            #     df['Time'] = df['Time'].astype('datetime64')
-            #     df = df.set_index('Time')
-            #     df = df.astype(float)
-            #     df.dropna(inplace=True)
-            #     if self.is_short:
-            #         df = df.tail(CUT_TAIL)
-            #     print(f'DB data has been cun by {CUT_TAIL} steps')
-            # else:
-            df = bd.downloader(self.asset, self.interval, self.is_short)
+            if self.asset.split('_')[0] in CRYPTO_TICKERS and self.interval == '1d':
+                table_index = CRYPTO_TICKERS.index(self.asset.split('_')[0])
+                table_name = DAILY_CRYPTO_DATA_TABLE_LIST[table_index]
+                print(f'For asset {self.asset} the daily data has been pulled from {table_name} ')
+                df = technical_data_load(table_name)
+                df['Time'] = df['Time'].astype('datetime64')
+                df = df.set_index('Time')
+                df = df.astype(float)
+                df.dropna(inplace=True)
+                if self.is_short:
+                    df = df.tail(CUT_TAIL)
+                print(f'DB data has been cut by {CUT_TAIL} steps')
+            else:
+                df = bd.downloader(self.asset, self.interval, self.is_short)
         if self.source == 'AV' or self.source == 'A':
             data = AVDownloader()
 

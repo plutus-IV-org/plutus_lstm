@@ -5,6 +5,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import matplotlib.dates as mdates
+import warnings
+from Const import *
+from db_service.SQLite import technical_data_load
+from matplotlib.dates import date2num
+
+# Suppress specific warnings
+warnings.filterwarnings("ignore",
+                        message=".*Setting the 'color' property will override the edgecolor or facecolor properties.*")
 
 
 def proces_bulk_data(file_path: str) -> Dict[str, Dict[str, Any]]:
@@ -135,39 +143,8 @@ def enrich_with_future_steps(df: pd.DataFrame, num_future_steps: int) -> pd.Data
     return enriched_df
 
 
-def extend_time_series(series: pd.Series, num_future_steps: int) -> pd.Series:
-    """
-    Extends the time series by adding future timestamps based on the detected time step,
-    and adds NaN as values for the future time steps.
-
-    Parameters:
-    ----------
-    series : pd.Series
-        The original time series with DatetimeIndex.
-    num_future_steps : int
-        The number of future time steps to add.
-
-    Returns:
-    -------
-    pd.Series
-        The extended time series with future time steps and NaN values for future dates.
-    """
-    time_values = series.index
-    time_delta = time_values[1] - time_values[0]  # Detect time step
-
-    # Extend the index by the same frequency with num_future_steps
-    future_dates = pd.date_range(start=time_values[-1] + time_delta, periods=num_future_steps, freq=time_delta)
-
-    # Create a series with NaN values for the new future dates
-    future_series = pd.Series([pd.NA] * num_future_steps, index=future_dates)
-
-    # Append future NaN series to the original series
-    extended_series = series.append(future_series)
-
-    return extended_series
-
-
-def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: str, da_list_val: List[str]) -> None:
+def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: str, da_list_val: List[str],
+                                 da_table: pd.DataFrame) -> None:
     """
     Creates a scatter plot for price over time, enriched with rectangles showing the forecast directions based on Lag (L)
     and Initial (I) values, and saves the plot as an image.
@@ -182,34 +159,44 @@ def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: s
         The path where the plot image will be saved.
     da_list_val : List[str]
         A list of values representing the height multipliers for each lag rectangle.
+    da_table : pd.DataFrame
+        Aa table containing directionally accuracy score.
     """
+    da_series = da_table['da_score']
+    # Extract the da_score column for plotting
+    init_df = df.copy()
     num_future_steps: int = len(df.columns) - 1  # Deduct the first column
     df = enrich_with_future_steps(df, num_future_steps)
 
     price_values = df.iloc[:, 0]  # The first column contains the actual price values
     future_steps = df.shape[1] - 1  # Number of future Lags (columns excluding the first)
-    extended_time_values = extend_time_series(price_values, num_future_steps=future_steps)
 
-    non_nan_mask = extended_time_values.notna()  # Create a mask for non-NaN values
-    filtered_time_values = extended_time_values.index[non_nan_mask]
-    filtered_price_values = extended_time_values[non_nan_mask]
+    non_nan_mask = price_values.notna()  # Create a mask for non-NaN values
+    filtered_time_values = price_values.index[non_nan_mask]
+    filtered_price_values = price_values[non_nan_mask]
 
-    fig, ax = plt.subplots(figsize=(18, 6))  # Set the width to 18 to make the X-axis much wider
-    plt.scatter(filtered_time_values, filtered_price_values, color='black', s=20, label=f'Price of {asset_name}',
+    fig, (ax1, ax3) = plt.subplots(2, 1, figsize=(18, 10), gridspec_kw={'height_ratios': [3, 1]})  # Two subplots
+
+    ax1.scatter(filtered_time_values, filtered_price_values, color='black', s=20, label=f'Price of {asset_name}',
                 zorder=3)
 
-    plt.title(f'Price and Predictions for {asset_name} (with {num_future_steps} lags)', fontsize=16, weight='bold')
-    plt.xlabel('Time', fontsize=12, weight='bold', color='#333333')
-    plt.ylabel('Price', fontsize=12, weight='bold', color='#333333')
-    plt.xticks(rotation=45, fontsize=10, weight='bold', color='#555555')
-    plt.yticks(fontsize=10, weight='bold', color='#555555')
-    plt.grid(True, which='both', linestyle='--', linewidth=0.7, color='lightgrey')
+    ax1.set_title(f'Price and Predictions for {asset_name} (with {num_future_steps} lags)', fontsize=16, weight='bold')
+    ax1.set_xlabel('Time', fontsize=12, weight='bold', color='#333333')
+    ax1.set_ylabel('Price', fontsize=12, weight='bold', color='#333333')
+    ax1.tick_params(axis='x', rotation=45, labelsize=10, labelcolor='#555555')
+    ax1.tick_params(axis='y', labelsize=10, labelcolor='#555555')
+    ax1.grid(True, which='both', linestyle='--', linewidth=0.7, color='lightgrey')
+
+    # Add secondary axis for the volume bars
+    ax2 = ax1.twinx()
+    ax2.set_ylabel('Volume', fontsize=12, weight='bold', color='#333333')
+    ax2.set_ylim([0, 0.1 * ax1.get_ylim()[1]])  # Scale the volume axis to 10% of the price axis height
 
     # Calculate Y-axis limits based on all values including height multipliers
     all_values = pd.concat([df.iloc[:, 0]] + [df.iloc[:, i] for i in range(1, future_steps + 1)])
     min_y, max_y = all_values.min(), all_values.max()
     padding = 0.05 * (max_y - min_y)  # 5% padding for tighter Y-axis limits
-    ax.set_ylim([min_y - padding, max_y + padding])
+    ax1.set_ylim([min_y - padding, max_y + padding])
 
     # Define the width of each sub-segment (split a day into parts)
     segment_width = pd.Timedelta(df.index[1] - df.index[0]) / (future_steps + 1)
@@ -250,39 +237,114 @@ def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: s
                         abs(lag_value - start_value) * height_multiplier,
                         color=color, alpha=0.6, edgecolor='black', linewidth=1, zorder=2
                     )
-                ax.add_patch(rect)
+                ax1.add_patch(rect)
 
                 # Ensure the label is centered within the rectangle
                 font_size = 7 if num_future_steps <= 5 else 4
-                if color == '#2ca02c':
-                    label_y_position = min(lag_value, start_value) + abs(
-                        lag_value - start_value) * height_multiplier / 2
-                else:
-                    label_y_position = abs(lag_value - start_value) * (1 - height_multiplier) + lag_value + abs(
-                        lag_value - start_value) * height_multiplier / 2
+                label_y_position = (min(lag_value, start_value) + abs(lag_value - start_value) * height_multiplier / 2
+                                    if color == '#2ca02c' else
+                                    abs(lag_value - start_value) * (1 - height_multiplier) + lag_value +
+                                    abs(lag_value - start_value) * height_multiplier / 2)
 
                 if abs(lag_value - start_value) * height_multiplier < 0.02 * (max_y - min_y):
-                    # If the rectangle is very small, offset the label slightly for readability
                     label_y_position += 0.02 * (max_y - min_y)
-                ax.text(start_position + segment_width / 2, label_y_position, f'{lag}',
-                        ha='center', va='center', fontsize=font_size, color='black', weight='bold', alpha=0.9, zorder=4)
+                ax1.text(start_position + segment_width / 2, label_y_position, f'{lag}',
+                         ha='center', va='center', fontsize=font_size, color='black', weight='bold', alpha=0.9,
+                         zorder=4)
 
     # Extend X-axis limits to ensure that all future rectangles are shown, including NaN dates
-    ax.set_xlim([filtered_time_values[0], extended_time_values.index[-1] + pd.Timedelta(df.index[1] - df.index[0])])
+    ax1.set_xlim([filtered_time_values[0], price_values.index[-1] + pd.Timedelta(df.index[1] - df.index[0])])
 
     # Set specific tick labels for every date on X-axis, including NaN values
-    ax.set_xticks(extended_time_values.index)
+    ax1.set_xticks(price_values.index)
 
     # Dynamically adjust the date formatter based on the time frequency
     time_delta = df.index[1] - df.index[0]
     if time_delta >= pd.Timedelta(days=1):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
     elif time_delta >= pd.Timedelta(hours=1):
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
     else:
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
+        ax1.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M:%S'))
 
-    # Save the plot with better padding
+    # Add the vertical line at the latest time value
+    latest_time_value = filtered_time_values[-1]
+    ax1.axvline(x=latest_time_value, color='black', linestyle='--', linewidth=1.5, zorder=1, label='Latest Value')
+    ax1.text(latest_time_value, ax1.get_ylim()[1], 'Now', ha='right', va='bottom', color='black', weight='bold')
+
+    # Add candlesticks, volume bars, and the DA Score bar chart in subplot (ax3)
+    if asset_name in CRYPTO_TICKERS and str(time_delta).split(' ')[0] == '1':
+        table_index = CRYPTO_TICKERS.index(asset_name)
+        table_name = DAILY_CRYPTO_DATA_TABLE_LIST[table_index]
+        df_tech = technical_data_load(table_name)
+        df_tech['Time'] = df_tech['Time'].astype('datetime64')
+        df_tech.set_index('Time', inplace=True)
+        df_tech = df_tech.astype(float)
+        df_tech.dropna(inplace=True)
+        df_tech = df_tech.loc[init_df.index]
+
+        if len(df_tech) > 0:
+            max_volume = df_tech['Volume'].max()
+
+            # Scale the volume bars to be at most 10% of the height of the price plot
+            max_price_range = max_y - min_y
+            scaled_volumes = (df_tech['Volume'] / max_volume) * (0.1 * max_price_range)
+
+            # Plot volume bars on the secondary Y-axis (ax2)
+            volume_color = ['green' if df_tech.iloc[i]['Close'] >= df_tech.iloc[i]['Open'] else 'red' for i in
+                            range(len(df_tech))]
+            ax2.bar(df_tech.index, scaled_volumes, width=segment_width * 2, color=volume_color, alpha=0.5, zorder=0)
+
+            # Manually plot candlesticks using matplotlib on the primary Y-axis (ax1)
+            for i, row in df_tech.iterrows():
+                open_val, high_val, low_val, close_val = row['Open'], row['High'], row['Low'], row['Close']
+                i_num = date2num(i)  # Convert the timestamp to a numerical format
+                color = 'green' if close_val >= open_val else 'red'
+                width = 0.6 * (filtered_time_values[1] - filtered_time_values[0]).days
+
+                # Plot the wicks (high-low range)
+                ax1.plot([i_num, i_num], [low_val, high_val], color='black', linewidth=1)
+
+                # Plot the body (open-close range)
+                rect = Rectangle((i_num - width / 2, min(open_val, close_val)), width, abs(close_val - open_val),
+                                 color=color, zorder=3)
+                ax1.add_patch(rect)
+
+            # Reindex da_series to match the index of df_tech and introduce NaN for missing dates
+            da_series = da_series.reindex(df_tech.index)
+            # Ensure the DA series contains only numeric values
+            da_series = pd.to_numeric(da_series, errors='coerce')  # Convert non-numeric values to NaN
+
+            # Adjust the normalization to reduce the color contrast (limit extremes in the gradient)
+            norm = plt.Normalize(da_series.min() * 0.9, da_series.max())  # Adjust the min/max for normalization
+
+            # Use the 'Greens' colormap for a green gradient
+            cmap = plt.cm.Greens
+            colors = cmap(norm(da_series))  # Apply the colormap to the DA values
+
+            # Plot the DA score bars with gradient coloring and a smaller alpha for transparency
+            ax3.bar(df_tech.index, da_series, width=segment_width * 3, color=colors, alpha=0.6)  # Reduced alpha to 0.3
+            ax3.set_ylabel('DA Score', fontsize=12, weight='bold', color='#333333')
+            ax3.tick_params(axis='x', rotation=45, labelsize=10, labelcolor='#555555')
+            ax3.grid(True, which='both', linestyle='--', linewidth=0.7, color='lightgrey')
+
+            # Adjust Y-limits for the DA Score bar plot
+            ax3.set_ylim([da_series.min() * 0.9, da_series.max() * 1.1])
+
+            # Add Y-axis gridlines with a step of 0.02
+            ymin, ymax = ax3.get_ylim()
+            ax3.set_yticks(np.arange(np.floor(ymin / 0.02) * 0.02, np.ceil(ymax / 0.02) * 0.02, 0.02))
+
+            # Ensure each day is visible on the x-axis (like in the top graph)
+            ax3.set_xticks(df_tech.index)
+            ax3.set_xticklabels(df_tech.index.strftime('%Y-%m-%d'), rotation=45, ha='right')
+
+            # Plot DA values within the bars
+            for i, value in enumerate(da_series):
+                ax3.text(df_tech.index[i], value*0.9, f'{value:.2f}', ha='center', va='center', fontsize=6, weight='bold',
+                         color='black', alpha=0.8)
+
+                # Save the plot with better padding
     plt.tight_layout(pad=2)
     plt.savefig(plot_path, dpi=300)
     plt.close()
@@ -431,14 +493,14 @@ def prepare_output_report(file_path: str, stored_data: Dict[str, Dict[str, Any]]
 
                 # Path to save the scatter plot image
                 plot_path = f'{sheet_name}_{short_key}_enriched_scatter_plot.png'
-                create_enriched_scatter_plot(combined_df, asset_name, plot_path, da_list_values)
+                create_enriched_scatter_plot(combined_df, asset_name, plot_path, da_list_values, tab_5)
 
                 # Insert the enriched scatter plot image into the Excel sheet to the right of the table
                 scatter_start_col = len(combined_df.columns) + 3  # Column "O" is around the 15th column
                 worksheet.insert_image(start_row, scatter_start_col, plot_path)
 
                 # Move `start_row` down for the next table and add buffer space
-                start_row += len(combined_df) + 10
+                start_row += len(combined_df) + 30
 
             # Set the width of the first column to the max length calculated
             worksheet.set_column(0, 0, first_column_max_len + 10)
