@@ -14,6 +14,8 @@ def _hyperparameters_one_layer():
         'weight_regulizer': [None]}
 
     return param_1_layer
+
+
 def _hyperparameters_two_layers():
     param_2_layers = {
         'lr': [0.001, 0.0001],
@@ -28,6 +30,7 @@ def _hyperparameters_two_layers():
         'weight_regulizer': [None]}
 
     return param_2_layers
+
 
 def _hyperparameters_three_layers():
     param_3_layers = {
@@ -44,3 +47,7 @@ def _hyperparameters_three_layers():
         'weight_regulizer': [None]}
 
     return param_3_layers
+
+
+
+

@@ -199,7 +199,10 @@ def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: s
     ax1.set_ylim([min_y - padding, max_y + padding])
 
     # Define the width of each sub-segment (split a day into parts)
-    segment_width = pd.Timedelta(df.index[1] - df.index[0]) / (future_steps + 1)
+    denominator = 3
+    if future_steps > 3:
+        denominator = future_steps
+    segment_width = pd.Timedelta(df.index[1] - df.index[0]) / (denominator + 1)
 
     # Draw rectangles for Lag predictions
     for i in range(len(df)):
@@ -311,7 +314,7 @@ def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: s
                 ax1.add_patch(rect)
 
             # Reindex da_series to match the index of df_tech and introduce NaN for missing dates
-            da_series = da_series.reindex(df_tech.index)
+            da_series = da_series.dropna().reindex(df_tech.index)
             # Ensure the DA series contains only numeric values
             da_series = pd.to_numeric(da_series, errors='coerce')  # Convert non-numeric values to NaN
 
@@ -454,7 +457,7 @@ def prepare_output_report(file_path: str, stored_data: Dict[str, Dict[str, Any]]
                                                     orange_font_border)
 
                 # --- Insert additional statistics from tab_5 with borders ---
-                list_str = tab_5['da_list'].iloc[-1]  # Get the string
+                list_str = tab_5['da_list'].dropna().iloc[-1]  # Get the string
                 da_list_values = list_str[2:-2].split(',')  # Extract list of values
 
                 # Insert each value from da_list under the corresponding Lag column with border
@@ -462,7 +465,7 @@ def prepare_output_report(file_path: str, stored_data: Dict[str, Dict[str, Any]]
                     worksheet.write(start_row + len(combined_df) + 1, i + 1, round(float(value), 2), pale_yellow_border)
 
                 # Insert da_score under non-Lag columns with border
-                latest_da_score = tab_5['da_score'].iloc[-1]
+                latest_da_score = tab_5['da_score'].dropna().iloc[-1]
                 worksheet.write(start_row + len(combined_df) + 1, 0, "DA Score", pale_yellow_border)
                 worksheet.write(start_row + len(combined_df) + 1, 1, round(float(latest_da_score), 2),
                                 pale_yellow_border)

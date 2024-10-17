@@ -6,7 +6,7 @@ def downloader(asset,interval):
     raw_data.dropna(inplace=True)
     print(f'Initial length of downloaded data is {len(raw_data)}')
     min_accept_length = 1500
-    cut_length = 3000
+    cut_length = 5000
     if len(raw_data)<min_accept_length:
         raise ValueError('No enough data!')
     if len(raw_data) > cut_length:

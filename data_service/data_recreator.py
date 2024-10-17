@@ -118,6 +118,7 @@ def data_preparation(cluster: str):
             con_tail = float(loaded_dict['confidence_tail'])
         else:
             con_tail = 0.5
+
         denormalised = _data_denormalisation(predictions.copy(), df_prices, f_d, testY[-126:], break_point=False,
                                              is_targeted=targeted, confidence_lvl=con_tail)
         time_index = normalised_data.tail(len(denormalised)).index

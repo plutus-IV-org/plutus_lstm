@@ -139,12 +139,13 @@ def _visualize_mda_results(results):
 def _visualize_accuracy_results(results):
     history = results.history
     fig = plt.figure(figsize=(14, 8))
-    plt.plot(history['val_accuracy'])
-    plt.plot(history['accuracy'])
-    plt.legend(['val_accuracy', 'accuracy'])
-    plt.title('accuracy')
+    metrics = [key for key in history.keys() if 'loss' not in key]
+    for metric in metrics:
+        plt.plot(history[metric], label=metric)
+    plt.legend(metric)
+    plt.title('metric_accuracy')
     plt.xlabel('epochs')
-    plt.ylabel('accuracy')
+    plt.ylabel('metric')
     slash = _slash_conversion()
     dir_path = _ROOT_PATH()
     fig.savefig(dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'accuracy.png')
@@ -217,20 +218,42 @@ def _visualize_prediction_results(prediction, actual):
     _send_discord_photo(dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'prediction.png')
 
 def _visualize_probability_distribution(prediction):
-    plt.hist(prediction.values.flatten(), bins=100, density=True, alpha=0.5,
-             histtype='stepfilled', color='steelblue',
-             edgecolor='none')
+    # Create the figure
+    plt.figure(figsize=(10, 6))
+
+    # Iterate over each column in the prediction DataFrame
+    for col_idx, column in enumerate(prediction.columns):
+        plt.hist(
+            prediction[column].values.flatten(),
+            bins=100,
+            density=True,
+            alpha=0.5,
+            histtype='stepfilled',
+            edgecolor='none',
+            label=f'Lag {col_idx + 1}',
+            linewidth=1.5
+        )
+
+    # Add labels and title
     plt.ylabel('Probability')
     plt.xlabel('Data Values')
     plt.title('Probability Distribution of Data')
 
-    plt.xlim([0, 1])  # Set limits of x-axis
-    plt.axvline(0.5, color='r')  # Add a vertical line at x=0.5, color red
+    # Set limits of x-axis
+    plt.xlim([0, 1])
 
+    # Add a vertical line at x=0.5
+    plt.axvline(0.5, color='r', linestyle='--', linewidth=1.2)
+
+    # Add legend
+    plt.legend(title='Lag Predictions', loc='upper right')
+
+    # Save the plot
     dir_path = _ROOT_PATH()
     slash = _slash_conversion()
-    save_path = dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'probability_distribution.png'
+    save_path = f"{dir_path}{slash}vaults{slash}picture_vault{slash}probability_distribution.png"
 
+    # Save and send the plot to Discord (or any platform you use)
     plt.savefig(save_path)
     _send_discord_photo(save_path)
 

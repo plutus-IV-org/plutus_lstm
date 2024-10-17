@@ -4,11 +4,11 @@ import matplotlib.pyplot as plt
 from keras.models import Sequential, load_model
 from keras.layers import LSTM, Dense, Dropout
 from keras.callbacks import EarlyStopping
-
+from Const import *
 import tensorflow as tf
 import keras
 from PATH_CONFIG import _ROOT_PATH
-from utilities.service_functions import _slash_conversion
+from utilities.service_functions import _slash_conversion, calculate_patience
 from datetime import datetime
 
 plt.style.use('ggplot')
@@ -27,7 +27,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         best_model = table.iloc[table['accuracy'].argmax(), :]
     except Exception:
         best_model = table
-    if testing == False and type(table) != dict:
+    if not testing and type(table) != dict:
         best_model_df = pd.DataFrame(best_model)
         best_model_df.columns = [datetime.now()]
         best_model_df = best_model_df.T
@@ -83,18 +83,20 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
     if str(best_model['second_lstm_layer']) == 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
+        mod.add(Dropout(best_model['dropout']))
         # mod.add(Dropout(best_model['dropout']))
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
+            mod.compile(opt, loss=MSE, metrics=[MSE])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
-        earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
+            mod.compile(opt, loss=MSE, metrics=[MSE])
+        earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
+                                  verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY])
+                          validation_data=[testX, testY], callbacks=[earlystop])
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
@@ -105,14 +107,15 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
+            mod.compile(opt, loss=MSE, metrics=[MSE])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
-        earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
+            mod.compile(opt, loss=MSE, metrics=[MSE])
+        earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
+                                  verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY])
+                          validation_data=[testX, testY], callbacks=[earlystop])
 
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) != 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
@@ -127,14 +130,15 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
         if is_targeted:
             mod.add(Dense(trainY.shape[1], activation='sigmoid'))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
+            mod.compile(opt, loss=MSE, metrics=[MSE])
         else:
             mod.add(Dense(trainY.shape[1]))
             opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss="binary_crossentropy", metrics=['accuracy'])
-        earlystop = EarlyStopping(monitor='loss', min_delta=0, patience=100, verbose=1, mode='min')
+            mod.compile(opt, loss=MSE, metrics=[MSE])
+        earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
+                                  verbose=1, mode='min')
         history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY])
+                          validation_data=[testX, testY], callbacks=[earlystop])
     prediction = mod.predict(testX).tolist()
     return history, prediction, mod
 

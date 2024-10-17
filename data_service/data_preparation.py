@@ -7,7 +7,7 @@ from data_service.vendors_data import yahoo_downloader as yd
 from data_service.vendors_data import binance_downloader as bd
 from data_service.vendors_data.av_downloader import AVDownloader
 from data_service.vendors_data.macro_downloader import mc_downloader as mc
-from data_service.vendors_data.sentiment_downloader import senti
+from data_service.vendors_data.sentiment_downloader import senti, download_btc_senti
 from data_service.vendors_data.meteo_downloader import get_daily_meteo
 from Const import CRYPTO_TICKERS, DAILY_CRYPTO_DATA_TABLE_LIST
 from db_service.SQLite import technical_data_load
@@ -35,7 +35,7 @@ class DataPreparation:
             if os.path.exists(file_directory):
                 print("The file exists.")
                 df = pd.read_csv(file_directory)
-                #TODO add pandas operations
+                # TODO add pandas operations
             else:
                 raise Exception("The file does not exist.")
         if self.source == 'Yahoo' or self.source == 'Y':
@@ -144,7 +144,7 @@ class DataPreparation:
             df.dropna(inplace=True)
             return df
 
-        def crypto_sentiment_daily():
+        def crypto_fear_and_greed_daily():
             r = requests.get('https://api.alternative.me/fng/?limit=0')
             df = pd.DataFrame(r.json()['data'])
             df.value = df.value.astype(int)
@@ -152,9 +152,10 @@ class DataPreparation:
             df.set_index('timestamp', inplace=True)
             df = df[::-1][['value']]
             df.rename(columns={'value': 'Crypto_Sentiment daily'}, inplace=True)
-            return df
+            inverse_df = 1 / df
+            return inverse_df
 
-        def ranked_crypto_sentiment_daily():
+        def ranked_crypto_fear_and_greed_daily():
             r = requests.get('https://api.alternative.me/fng/?limit=0')
             df = pd.DataFrame(r.json()['data'])
             df.value = df.value.astype(int)
@@ -316,16 +317,18 @@ class DataPreparation:
                 'indicators': lambda df: indicators(df, self.past),
                 'macro': lambda df: macro(df, self.interval),
                 'senti': lambda: 100 + senti(self.asset),  # No 'df' passed here
-                'crypto_sentiment_daily': crypto_sentiment_daily,
-                'ranked_crypto_sentiment_daily': ranked_crypto_sentiment_daily,
+                'crypto_fear_and_greed_daily': crypto_fear_and_greed_daily,
+                'ranked_crypto_fear_and_greed_daily': ranked_crypto_fear_and_greed_daily,
                 'crypto_benchmark': lambda: crypto_benchmark()[['Close']].rename(columns={'Close': 'BTC-USD Close'}),
+                'btc_senti_daily': download_btc_senti,
             }
 
             # Iterate over the dictionary, try to call each function and store the result in df_dict
             for key, function in functions_to_call.items():
                 try:
                     # For functions that don't take 'df' as an argument
-                    if key in ['senti', 'crypto_sentiment_daily', 'ranked_crypto_sentiment_daily', 'crypto_benchmark']:
+                    if key in ['senti', 'crypto_fear_and_greed_daily', 'ranked_crypto_fear_and_greed_daily',
+                               'crypto_benchmark', 'btc_senti_daily']:
                         df_dict[key] = function()
                     else:  # For all other functions, pass 'df' as an argument
                         df_dict[key] = function(df)
@@ -369,4 +372,3 @@ if __name__ == '__main__':
     df_short = DataPreparation('ETH-USD', 'Custom', 'B', '1d', 100, True)._download_prices()
     t2 = dt.datetime.now()
     delta_short = t2 - t1
-

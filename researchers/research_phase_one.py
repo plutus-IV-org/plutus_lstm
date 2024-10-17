@@ -1,4 +1,5 @@
 from utilities.service_functions import _slash_conversion
+from Const import *
 import platform
 import glob
 import pandas as pd
@@ -88,13 +89,13 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss="binary_crossentropy",
-                              metrics=['accuracy'])
+                              loss=MSE,
+                              metrics=[MSE])
             else:
                 model.add(Dense(trainY.shape[1]))
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss="binary_crossentropy",
-                              metrics=['accuracy'])
+                              loss=MSE,
+                              metrics=[MSE])
             history = model.fit(trainX, trainY,
                                 batch_size=params['batch_size'],
                                 epochs=params['epochs'],
@@ -154,13 +155,13 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss="binary_crossentropy",
-                              metrics=['accuracy'])
+                              loss=MSE,
+                              metrics=[MSE])
             else:
                 model.add(Dense(trainY.shape[1]))
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss="binary_crossentropy",
-                              metrics=['accuracy'])
+                              loss=MSE,
+                              metrics=[MSE])
             history = model.fit(trainX, trainY,
                                 batch_size=params['batch_size'],
                                 epochs=params['epochs'],
@@ -227,13 +228,13 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             if self.is_targeted:  # use self.is_targeted instead of is_targeted
                 model.add(Dense(trainY.shape[1], activation='sigmoid'))  # correct placement of bracket
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss="binary_crossentropy",
-                              metrics=['accuracy'])
+                              loss=MSE,
+                              metrics=[MSE])
             else:
                 model.add(Dense(trainY.shape[1]))
                 model.compile(params['optimizer'](lr=lr_normalizer(params['lr'], params['optimizer'])),
-                              loss="binary_crossentropy",
-                              metrics=['accuracy'])
+                              loss=MSE,
+                              metrics=[MSE])
 
             history = model.fit(trainX, trainY,
                                 batch_size=params['batch_size'],

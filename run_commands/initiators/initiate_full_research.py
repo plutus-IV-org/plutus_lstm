@@ -93,6 +93,7 @@ class InitiateResearch:
             if len(df) < 1500:
                 raise Exception('Too short selected data')
         if self.custom_layers:
+            # Select LSTM params
             custom_layer_ui = CustomLayerUI()
             custom_layer_ui.show()
 
@@ -131,7 +132,7 @@ class InitiateResearch:
 
             epochs_test_collector = {}
 
-            for x in [1, 2, 4]:
+            for x in [1]:
                 history, predicted_test_x, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
                                                                 self.research_results,
                                                                 self.trainX, self.trainY, self.testX, self.testY,

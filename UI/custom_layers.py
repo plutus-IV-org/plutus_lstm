@@ -26,13 +26,13 @@ class CustomLayerUI:
         tk.Entry(self.root, textvariable=self.third_var).grid(row=2, column=1)
 
         tk.Label(self.root, text="Dropout").grid(row=3, sticky="w")
-        tk.OptionMenu(self.root, self.dropout_var, "0", "0.1", "0.2").grid(row=3, column=1)
+        tk.OptionMenu(self.root, self.dropout_var, "0", "0.1", "0.2", "0.3").grid(row=3, column=1)
 
         tk.Label(self.root, text="Batch size").grid(row=4, sticky="w")
-        tk.OptionMenu(self.root, self.batch_var, "32", "64").grid(row=4, column=1)
+        tk.OptionMenu(self.root, self.batch_var, "16", "32", "64").grid(row=4, column=1)
 
         tk.Label(self.root, text="Learning Rate").grid(row=5, sticky="w")
-        tk.OptionMenu(self.root, self.lr_var, "0.0001", "0.001").grid(row=5, column=1)
+        tk.OptionMenu(self.root, self.lr_var, "0.0001", "0.00025", "0.0005", "0.001").grid(row=5, column=1)
 
         tk.Button(self.root, text="Submit", command=self.submit).grid(row=6, columnspan=2)
 

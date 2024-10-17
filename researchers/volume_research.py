@@ -292,3 +292,80 @@ def reset_hourly_bool_lst(init_time: datetime, current_time: datetime, bool_list
         init_time = current_time
         bool_list[:] = [True] * len(bool_list)  # Modify the list in place
     return init_time, bool_list
+
+
+def run_momentum_analysis(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Perform momentum analysis on a given DataFrame with hourly financial data.
+
+    The function calculates the momentum as the ratio of the 'Close' price to its
+    previous value, drops any missing values, and computes statistical properties
+    (mean, standard deviation, skewness, and kurtosis) grouped by the 'Hour' column.
+
+    Parameters:
+    -----------
+    hour_df : pd.DataFrame
+        DataFrame containing at least the columns 'Close' and 'Hour'. 'Close' represents
+        the closing prices, and 'Hour' represents the hour of the day.
+
+    Returns:
+    --------
+    tuple[pd.DataFrame, pd.DataFrame]
+        - A DataFrame with the 'Momentum' column added and any NaN values removed.
+        - A DataFrame with statistical properties (mean, standard deviation, skewness, and
+          kurtosis) of the momentum for each hour.
+    """
+    hour_df = df.copy()
+    hour_df['Momentum'] = hour_df['Close'] / hour_df['Close'].shift()
+    hour_df.dropna(inplace=True)
+
+    # Calculate statistics for each hour (mean, std, skewness, kurtosis)
+    momentum_stats_df = hour_df.groupby('Hour')['Momentum'].agg(['mean', 'std', skew, kurtosis])
+
+    return hour_df, momentum_stats_df
+
+
+import pandas as pd
+
+
+def compare_hourly_momentum(hour_df: pd.DataFrame, momentum_stats_df: pd.DataFrame) -> None:
+    """
+    Compare the most recent momentum value against statistical boundaries for the current hour.
+
+    This function retrieves the most recent momentum value from the provided `hour_df` DataFrame
+    and compares it to the statistical mean and standard deviation for the corresponding hour
+    from the `momentum_stats_df` DataFrame. It prints a message indicating whether the current
+    momentum is within one standard deviation of the mean, or if it exceeds the boundaries.
+
+    Parameters:
+    -----------
+    hour_df : pd.DataFrame
+        DataFrame containing hourly financial data, including a 'Momentum' column. The most
+        recent data point is used for comparison.
+
+    momentum_stats_df : pd.DataFrame
+        DataFrame containing statistical properties (mean, standard deviation, etc.) of
+        the momentum grouped by hour. This DataFrame should have a 'mean' and 'std' column.
+
+    Returns:
+    --------
+    None
+        The function prints the result of the comparison.
+    """
+    # Retrieve the most recent momentum value
+    current_data = hour_df.iloc[-1].Momentum
+    current_time = hour_df.index[-1].hour
+
+    # Retrieve statistical mean and standard deviation for the current hour
+    stat_mean = momentum_stats_df.loc[current_time]['mean']
+    stat_std = momentum_stats_df.loc[current_time]['std']
+
+    # Calculate the upper and lower boundaries
+    top_boundary = stat_mean + stat_std
+    bottom_boundary = stat_mean - stat_std
+
+    # Compare current momentum with the boundaries
+    if bottom_boundary < current_data < top_boundary:
+        print(f'CURRENT MOMENTUM IS {current_data}')
+    else:
+        print(f'ATTENTION: CURRENT MOMENTUM {current_data} EXCEEDS STATISTICAL DATA {top_boundary, bottom_boundary}')

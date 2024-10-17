@@ -12,7 +12,7 @@ SHARE_DRIVE_DIR = "G:\My Drive\Plutus_reports"
 TIME_INTERVALS = ['1d', '1h']
 DAILY_ALERT_SOUND_PATH = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\day_alert.mp3"
 HOURLY_ALERT_SOUND_PATH = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\hour_alert.mp3"
-
+MSE = 'mse'
 
 class ModelBatches(Enum):
     _1d_10 = {'Corn_Asian_elephant': 0.25,

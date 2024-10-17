@@ -175,7 +175,7 @@ def process_dataframe(df: pd.DataFrame, trim_length: int = 20) -> pd.DataFrame:
         pd.DataFrame: The processed DataFrame with styling applied.
     """
     # Transpose the DataFrame if the number of columns is greater than the number of rows
-    if df.shape[1] > df.shape[0]:
+    if df.shape[1] > df.shape[0] and df.shape[1] > trim_length:
         df = df.transpose()
 
     # Check for a date-like column and set it as the index if not already set
