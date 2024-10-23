@@ -113,21 +113,31 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
         accuracy_1_year, one_year_cov,combined_df = compute_dma(combined_df.tail(252).copy())
         accuracy_6_months, six_month_cov, combined_df = compute_dma(combined_df.tail(126).copy())
 
-        long_accuracy = diff.copy()
-        long_accuracy[diff == 0] = 0
-        long_accuracy[diff == 2] = 1
-        long_accuracy[abs(diff) == 1] = np.nan
-        long_accuracy[diff == -2] = np.nan
-        long_cov = (~np.isnan(long_accuracy)).astype(int).mean()
-        long_accuracy = long_accuracy.mean()
+        # Old calcs
+        # long_accuracy = diff.copy()
+        # long_accuracy[diff == 0] = 0
+        # long_accuracy[diff == 2] = 1
+        # long_accuracy[abs(diff) == 1] = np.nan
+        # long_accuracy[diff == -2] = np.nan
+        # long_cov = (~np.isnan(long_accuracy)).astype(int).mean()
+        # long_accuracy = long_accuracy.mean()
 
-        short_accuracy = diff.copy()
-        short_accuracy[diff == 0] = 0
-        short_accuracy[diff == -2] = 1
-        short_accuracy[abs(diff) == 1] = np.nan
-        short_accuracy[diff == 2] = np.nan
-        short_cov = (~np.isnan(short_accuracy)).astype(int).mean()
-        short_accuracy = short_accuracy.mean()
+        # short_accuracy = diff.copy()
+        # short_accuracy[diff == 0] = 0
+        # short_accuracy[diff == -2] = 1
+        # short_accuracy[abs(diff) == 1] = np.nan
+        # short_accuracy[diff == 2] = np.nan
+        # short_cov = (~np.isnan(short_accuracy)).astype(int).mean()
+        # short_accuracy = short_accuracy.mean()
+
+        # New calcs
+        long_accuracy_df = diff.copy()
+        long_accuracy = (long_accuracy_df[predicted_df == 1]/2).mean()
+        long_cov = (~np.isnan(long_accuracy_df[predicted_df == 1])).astype(int).mean()
+
+        short_accuracy_df = diff.copy()
+        short_accuracy = (short_accuracy_df[predicted_df == -1] / 2).mean() * (-1)
+        short_cov = (~np.isnan(short_accuracy_df[predicted_df == -1])).astype(int).mean()
 
     else:
         try:
