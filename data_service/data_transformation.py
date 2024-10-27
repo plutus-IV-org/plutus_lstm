@@ -1,7 +1,7 @@
 from fitter import Fitter, get_common_distributions
 import pandas as pd
 import numpy as np
-
+from Const import CROSS_VALIDATION_CHUNKS
 
 def _data_normalisation(df, is_targeted: bool = False):
     """
@@ -218,6 +218,141 @@ def _split_data(df: pd.DataFrame, future: int, past: int, break_point=True, is_t
     testY = array_maker(test_y)
 
     return trainX, trainY, testX, testY
+
+
+def fraction(df: pd.DataFrame, n_past: int, n_future: int, is_targeted: bool = False):
+    """
+    Creates input sequences (X) and their corresponding targets (Y) from the provided DataFrame.
+
+    Parameters:
+    - df: pd.DataFrame, the input data.
+    - n_past: int
+        Lookback period
+    - n_future: int
+        Look forward period
+    - is_targeted: bool, indicates whether to create binary classification targets based on 'Target' column.
+
+    Returns:
+    - x: list, input sequences.
+    - y: list, target sequences.
+    """
+    X, Y = [], []  # Initialize lists to store input sequences and targets
+    data = df.reset_index(drop=True).copy()  # Reset DataFrame index to avoid issues with slicing
+
+    # Loop over the dataset to create past/future sequences
+    for x in range(n_past, len(data) - n_future + 1):
+        if is_targeted:
+            # If is_targeted, calculate binary target values based on 'Target' column
+            input_val = data.loc[x - n_past:x, :].drop(columns=['Target']).values
+            output_val = data.iloc[x + 1:x + n_future + 1, :]['Target'] - data.iloc[x, :][
+                'Target']
+            # Convert target values to 1 (positive change) or 0 (negative/no change)
+            output_val[output_val > 0] = 1
+            output_val[output_val <= 0] = 0
+        else:
+            # If not targeted, use values from the DataFrame as targets
+            input_val = data.loc[x - n_past:x, :].values
+            output_val = data.iloc[x + 1:x + n_future + 1, 0].values  # Using the first column as target
+
+        # If target sequence is shorter than n_future, break the loop
+        if len(output_val) < n_future:
+            break
+
+        X.append(input_val)
+        Y.append(output_val)
+
+    return X, Y
+
+
+def data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = False) -> tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Splits the input DataFrame into training and testing sets based on the provided 'future' and 'past' time steps.
+    It also generates the input sequences (trainX, testX) and their corresponding targets (trainY, testY).
+
+    Parameters:
+    ----------
+    df : pd.DataFrame
+        The input time series data, where each row represents one time step, and columns represent features.
+
+    future : int
+        The number of future time steps to predict. For example, if future=5, the model will predict 5 time steps ahead.
+
+    past : int
+        The number of past time steps used as input features. For example, if past=100, the model will use the previous 100 time steps as input.
+
+    is_targeted : bool, optional (default=False)
+        If True, the target sequences will be binary classification (1 for upward movement, 0 for downward movement)
+        based on the positive/negative change in the 'Target' column. If False, the target sequences will be the actual values.
+
+    Returns:
+    -------
+    trainX : np.ndarray
+        A 3D array of input sequences for the training set, with shape (num_samples, past, num_features).
+
+    trainY : np.ndarray
+        A 2D array of target sequences for the training set, with shape (num_samples, num_future_steps).
+
+    testX : np.ndarray
+        A 3D array of input sequences for the testing set, with shape (num_samples, past, num_features).
+
+    testY : np.ndarray
+        A 2D array of target sequences for the testing set, with shape (num_samples, num_future_steps).
+    """
+
+    # Split the DataFrame into training (80%) and testing (20%) sets
+    dataset_train = df.iloc[:int(df.shape[0] * 0.8), :]
+    dataset_test = df.iloc[int(df.shape[0] * 0.8):, :]
+
+    # Generate input/target sequences for both training and testing sets
+    train_x, train_y = fraction(dataset_train, past, future, is_targeted)
+    test_x, test_y = fraction(dataset_test, past, future, is_targeted)
+
+    # Convert lists to NumPy arrays for compatibility with LSTM models
+    train_x = np.array(train_x, dtype=float)
+    train_y = array_maker(train_y)  # Convert to 2D array using the array_maker function
+    test_x = np.array(test_x, dtype=float)
+    test_y = array_maker(test_y)
+
+    return train_x, train_y, test_x, test_y
+
+
+def cross_validation_data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = False):
+    """
+    Function to perform incremental training using an expanding window on time-series data.
+
+    df: pd.DataFrame - The dataset containing time-series data.
+    future: int - Number of future days to predict.
+    past: int - Number of past days to use for training.
+    is_targeted: bool - Whether the function is targeting price movement classification.
+
+    Returns:
+    - train_x_list: A list of 3D arrays of training input sequences for each cross-validation chunk.
+    - train_y_list: A list of 2D arrays of training target sequences for each cross-validation chunk.
+    - val_x_list: A list of 3D arrays of validation input sequences for each cross-validation chunk.
+    - val_y_list: A list of 2D arrays of validation target sequences for each cross-validation chunk.
+    """
+
+    train_x_list, train_y_list, val_x_list, val_y_list = [], [], [], []
+
+    # Loop over each percentage chunk from CROSS_VALIDATION_CHUNKS
+    for chunk in CROSS_VALIDATION_CHUNKS:
+        # Define the training set size based on the chunk
+        current_train_size = int(df.shape[0] * chunk)
+
+        # Create a subset of the data for the current chunk
+        subset_df = df.iloc[:current_train_size, :]
+
+        # Use the existing data_split function to get train/validation sets for the current chunk
+        train_x, train_y, val_x, val_y = data_split(subset_df, future, past, is_targeted)
+
+        # Append the results to the respective lists
+        train_x_list.append(train_x)
+        train_y_list.append(train_y)
+        val_x_list.append(val_x)
+        val_y_list.append(val_y)
+
+    return train_x_list, train_y_list, val_x_list, val_y_list
 
 
 def partial_data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = False):

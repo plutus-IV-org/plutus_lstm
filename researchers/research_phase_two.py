@@ -20,6 +20,43 @@ pd.options.mode.chained_assignment = None
 
 # mod = Sequential()
 
+class CustomEarlyStopping(Callback):
+    def on_epoch_end(self, epoch, logs={}):
+        if logs.get('loss') <= logs.get('val_loss'):
+            self.model.stop_training = True
+
+
+# Enable eager execution
+# tf.config.run_functions_eagerly(True)
+def directional_loss(y_true, y_pred):
+    # Calculate the difference between consecutive elements in y_true and y_pred
+    y_true_cumsum = tf.cumsum(y_true, axis=1)
+    y_pred_cumsum = tf.cumsum(y_pred, axis=1)
+
+    # Calculate the signs of the differences
+    true_sign = tf.sign(y_true_cumsum)
+    pred_sign = tf.sign(y_pred_cumsum)
+
+    # Calculate the absolute difference between the true and predicted signs
+    sign_diff = tf.abs(true_sign - pred_sign)
+
+    # Calculate the mean of the absolute differences
+    loss = tf.reduce_mean(sign_diff) / 2.0
+
+    return loss
+
+
+# @tf.function
+def mda(y_true, y_pred):
+    arr_pred = tf.convert_to_tensor(y_pred)
+    arr_act = tf.convert_to_tensor(y_true)
+    cus_sum_pred = tf.math.cumsum(arr_pred, axis=1)
+    cus_sum_actual = tf.math.cumsum(arr_act, axis=1)
+    multiplication = cus_sum_actual * cus_sum_pred
+    multiplication = tf.where(multiplication > 0, 1, 0)
+    mean = tf.keras.backend.mean(tf.cast(multiplication, tf.float32))
+    return mean
+
 
 def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, testY, epo=500,
                    is_targeted: bool = False):
@@ -43,42 +80,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
     mod = Sequential()
     epo = epo
 
-    class CustomEarlyStopping(Callback):
-        def on_epoch_end(self, epoch, logs={}):
-            if logs.get('loss') <= logs.get('val_loss'):
-                self.model.stop_training = True
-
     custom_early_stopping = CustomEarlyStopping()
-
-    # Enable eager execution
-    # tf.config.run_functions_eagerly(True)
-    def directional_loss(y_true, y_pred):
-        # Calculate the difference between consecutive elements in y_true and y_pred
-        y_true_cumsum = tf.cumsum(y_true, axis=1)
-        y_pred_cumsum = tf.cumsum(y_pred, axis=1)
-
-        # Calculate the signs of the differences
-        true_sign = tf.sign(y_true_cumsum)
-        pred_sign = tf.sign(y_pred_cumsum)
-
-        # Calculate the absolute difference between the true and predicted signs
-        sign_diff = tf.abs(true_sign - pred_sign)
-
-        # Calculate the mean of the absolute differences
-        loss = tf.reduce_mean(sign_diff) / 2.0
-
-        return loss
-
-    # @tf.function
-    def mda(y_true, y_pred):
-        arr_pred = tf.convert_to_tensor(y_pred)
-        arr_act = tf.convert_to_tensor(y_true)
-        cus_sum_pred = tf.math.cumsum(arr_pred, axis=1)
-        cus_sum_actual = tf.math.cumsum(arr_act, axis=1)
-        multiplication = cus_sum_actual * cus_sum_pred
-        multiplication = tf.where(multiplication > 0, 1, 0)
-        mean = tf.keras.backend.mean(tf.cast(multiplication, tf.float32))
-        return mean
 
     if str(best_model['second_lstm_layer']) == 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), activation='tanh',
@@ -95,8 +97,13 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
             mod.compile(opt, loss=MSE, metrics=[MSE])
         earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
                                   verbose=1, mode='min')
-        history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY], callbacks=[earlystop])
+        # Incrementally train the model
+        for i, (trainX, trainY, valX, valY) in enumerate(zip(trainX, trainY, testX, testY)):
+            print(f"Incremental Fold {i + 1}:")
+            print(f"Training on {trainX.shape[0]} samples")
+            history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
+                              validation_data=[testX, testY], callbacks=[earlystop])
+
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
                      input_shape=(trainX.shape[1], trainX.shape[2])))
@@ -114,8 +121,12 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
             mod.compile(opt, loss=MSE, metrics=[MSE])
         earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
                                   verbose=1, mode='min')
-        history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY], callbacks=[earlystop])
+        # Incrementally train the model
+        for i, (trainX, trainY, valX, valY) in enumerate(zip(trainX, trainY, testX, testY)):
+            print(f"Incremental Fold {i + 1}:")
+            print(f"Training on {trainX.shape[0]} samples")
+            history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
+                              validation_data=[testX, testY], callbacks=[earlystop])
 
     if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) != 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
@@ -137,8 +148,12 @@ def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, 
             mod.compile(opt, loss=MSE, metrics=[MSE])
         earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
                                   verbose=1, mode='min')
-        history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                          validation_data=[testX, testY], callbacks=[earlystop])
+        # Incrementally train the model
+        for i, (trainX, trainY, valX, valY) in enumerate(zip(trainX, trainY, testX, testY)):
+            print(f"Incremental Fold {i + 1}:")
+            print(f"Training on {trainX.shape[0]} samples")
+            history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
+                              validation_data=[testX, testY], callbacks=[earlystop])
     prediction = mod.predict(testX).tolist()
     return history, prediction, mod
 

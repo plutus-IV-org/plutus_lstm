@@ -4,7 +4,7 @@ from researchers.research_phase_two import _perfect_model, _raw_model_saver
 from messenger_commands.messenger_commands import _send_telegram_msg, _dataframe_to_png, _send_discord_message
 from data_service.data_preparation import DataPreparation
 from data_service.data_transformation import _data_normalisation, _split_data, \
-    _distribution_type, _data_denormalisation, log_z_score_rolling
+    _distribution_type, _data_denormalisation, log_z_score_rolling, cross_validation_data_split
 from messenger_commands.messenger_commands import _visualize_loss_results, _visualize_accuracy_results, \
     _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results, \
     _visualize_probability_distribution
@@ -105,7 +105,7 @@ class InitiateResearch:
         # Normalisation
 
         normalised_data = _data_normalisation(df, self.directional_orientation)
-        #normalised_data = log_z_score_rolling(df, 85, self.directional_orientation).dropna()
+        # normalised_data = log_z_score_rolling(df, 85, self.directional_orientation).dropna()
         self.data_table_normalized = normalised_data.copy()
         distribution_type = _distribution_type(df)
 
@@ -115,8 +115,11 @@ class InitiateResearch:
         for p_d in self.past:
             for f_d in self.future:
                 # Split and fractionating based on dc zscore
-                self.trainX, self.trainY, self.testX, self.testY = _split_data(normalised_data, f_d, p_d,
-                                                                               is_targeted=self.directional_orientation)
+                # self.trainX, self.trainY, self.testX, self.testY = _split_data(normalised_data, f_d, p_d,
+                #                                                                is_targeted=self.directional_orientation)
+                self.trainX, self.trainY, self.testX, self.testY = cross_validation_data_split(normalised_data, f_d, p_d,
+                                                             is_targeted=self.directional_orientation)
+
         loop_number = 1
         storage = {}
         while loop_number <= self.loops_to_run:
