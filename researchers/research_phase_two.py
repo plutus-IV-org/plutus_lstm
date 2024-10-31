@@ -58,104 +58,91 @@ def mda(y_true, y_pred):
     return mean
 
 
-def _perfect_model(testing, asset, df_normalised, table, trainX, trainY, testX, testY, epo=500,
+def _perfect_model(testing, asset, df_normalised, table, trainX_list, trainY_list, testX_list, testY_list, epo=500,
                    is_targeted: bool = False):
+    """
+    Function to train a model incrementally over different folds using cross-validation data.
+
+    Parameters:
+    - testing: bool, whether the model is in testing mode.
+    - asset: str, name of the asset being trained on.
+    - df_normalised: pd.DataFrame, normalized data for training/testing.
+    - table: pd.DataFrame or dict, best model parameters.
+    - trainX_list, trainY_list: List of training data for each fold.
+    - testX_list, testY_list: List of test data for each fold.
+    - epo: int, number of epochs.
+    - is_targeted: bool, if True, it will use binary classification (sigmoid) for the output layer.
+
+    Returns:
+    - history: training history of the final fold.
+    - prediction: model predictions on the last fold.
+    - mod: trained model.
+    """
+
     try:
         best_model = table.iloc[table['accuracy'].argmax(), :]
     except Exception:
         best_model = table
-    if not testing and type(table) != dict:
-        best_model_df = pd.DataFrame(best_model)
+
+    if not testing and isinstance(table, pd.DataFrame):
+        best_model_df = pd.DataFrame(best_model).T
         best_model_df.columns = [datetime.now()]
-        best_model_df = best_model_df.T
         best_model_df['asset'] = asset
-        slash = _slash_conversion()
-        _dir = _ROOT_PATH()
-        slash = _slash_conversion()
-        best_model_df.to_csv(_dir + slash + 'vaults' + slash + 'data_vault' + slash + 'best_models_register.csv',
+        best_model_df.to_csv(_ROOT_PATH() + _slash_conversion() + 'vaults/data_vault/best_models_register.csv',
                              mode='a', index=True, header=False)
-    else:
-        pass
 
+    # Initialize the model based on the first fold's input shape
     mod = Sequential()
-    epo = epo
+    # Initialize an empty list to store histories
+    all_fold_histories = []
 
-    custom_early_stopping = CustomEarlyStopping()
-
+    # Build the model based on best_model parameters
     if str(best_model['second_lstm_layer']) == 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), activation='tanh',
-                     input_shape=(trainX.shape[1], trainX.shape[2])))
+                     input_shape=(trainX_list[0].shape[1], trainX_list[0].shape[2])))
         mod.add(Dropout(best_model['dropout']))
-        # mod.add(Dropout(best_model['dropout']))
-        if is_targeted:
-            mod.add(Dense(trainY.shape[1], activation='sigmoid'))
-            opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss=MSE, metrics=[MSE])
-        else:
-            mod.add(Dense(trainY.shape[1]))
-            opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss=MSE, metrics=[MSE])
-        earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
-                                  verbose=1, mode='min')
-        # Incrementally train the model
-        for i, (trainX, trainY, valX, valY) in enumerate(zip(trainX, trainY, testX, testY)):
-            print(f"Incremental Fold {i + 1}:")
-            print(f"Training on {trainX.shape[0]} samples")
-            history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                              validation_data=[testX, testY], callbacks=[earlystop])
-
-    if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) == 'nan':
+    elif str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) == 'nan':
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
-                     input_shape=(trainX.shape[1], trainX.shape[2])))
+                     input_shape=(trainX_list[0].shape[1], trainX_list[0].shape[2])))
         mod.add(Dropout(best_model['dropout']))
-        mod.add(LSTM(int(best_model['second_lstm_layer']), activation='tanh',
-                     input_shape=(trainX.shape[1], trainX.shape[2])))
+        mod.add(LSTM(int(best_model['second_lstm_layer']), activation='tanh'))
         mod.add(Dropout(best_model['dropout']))
-        if is_targeted:
-            mod.add(Dense(trainY.shape[1], activation='sigmoid'))
-            opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss=MSE, metrics=[MSE])
-        else:
-            mod.add(Dense(trainY.shape[1]))
-            opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss=MSE, metrics=[MSE])
-        earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
-                                  verbose=1, mode='min')
-        # Incrementally train the model
-        for i, (trainX, trainY, valX, valY) in enumerate(zip(trainX, trainY, testX, testY)):
-            print(f"Incremental Fold {i + 1}:")
-            print(f"Training on {trainX.shape[0]} samples")
-            history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                              validation_data=[testX, testY], callbacks=[earlystop])
-
-    if str(best_model['second_lstm_layer']) != 'nan' and str(best_model['third_lstm_layer']) != 'nan':
+    else:
         mod.add(LSTM(int(best_model['first_lstm_layer']), return_sequences=True, activation='tanh',
-                     input_shape=(trainX.shape[1], trainX.shape[2])))
+                     input_shape=(trainX_list[0].shape[1], trainX_list[0].shape[2])))
         mod.add(Dropout(best_model['dropout']))
-        mod.add(LSTM(int(best_model['second_lstm_layer']), return_sequences=True, activation='tanh',
-                     input_shape=(trainX.shape[1], trainX.shape[2])))
+        mod.add(LSTM(int(best_model['second_lstm_layer']), return_sequences=True, activation='tanh'))
         mod.add(Dropout(best_model['dropout']))
-        mod.add(LSTM(int(best_model['third_lstm_layer']), activation='tanh',
-                     input_shape=(trainX.shape[1], trainX.shape[2])))
+        mod.add(LSTM(int(best_model['third_lstm_layer']), activation='tanh'))
         mod.add(Dropout(best_model['dropout']))
-        if is_targeted:
-            mod.add(Dense(trainY.shape[1], activation='sigmoid'))
-            opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss=MSE, metrics=[MSE])
-        else:
-            mod.add(Dense(trainY.shape[1]))
-            opt = keras.optimizers.Adam(lr=best_model['lr'])
-            mod.compile(opt, loss=MSE, metrics=[MSE])
-        earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
-                                  verbose=1, mode='min')
-        # Incrementally train the model
-        for i, (trainX, trainY, valX, valY) in enumerate(zip(trainX, trainY, testX, testY)):
-            print(f"Incremental Fold {i + 1}:")
-            print(f"Training on {trainX.shape[0]} samples")
-            history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
-                              validation_data=[testX, testY], callbacks=[earlystop])
-    prediction = mod.predict(testX).tolist()
-    return history, prediction, mod
+
+    # Add the output layer based on the problem type
+    # if is_targeted:
+    #     mod.add(Dense(trainY_list[0].shape[1], activation='sigmoid'))
+    #     mod.compile(optimizer=keras.optimizers.Adam(lr=best_model['lr']), loss='binary_crossentropy',
+    #                 metrics=['accuracy'])
+    # else:
+    mod.add(Dense(trainY_list[0].shape[1]))
+    mod.compile(optimizer=keras.optimizers.Adam(lr=best_model['lr']), loss='mse', metrics=['mse'])
+
+    earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
+                              verbose=1, mode='min')
+
+    # Incrementally train the model on each fold
+    for i, (trainX, trainY, valX, valY) in enumerate(zip(trainX_list, trainY_list, testX_list, testY_list)):
+        print(f"Incremental Fold {i + 1}:")
+        print(f"Training on {trainX.shape[0]} samples")
+
+        # Train the model incrementally (this does not reset the model)
+        history = mod.fit(trainX, trainY, batch_size=int(best_model['batch_size']), epochs=epo, verbose=1,
+                          validation_data=(valX, valY), callbacks=[earlystop])
+        # Append history for this fold to all_fold_histories
+        all_fold_histories.append(history.history)
+
+    # Make predictions with the final trained model on the last fold
+    prediction = mod.predict(testX_list[-1]).tolist()
+
+    return all_fold_histories, prediction, mod
 
 
 def _raw_model_saver(asset, df_type, epo, past, future, interval, dta, source, unique_name, mod,
