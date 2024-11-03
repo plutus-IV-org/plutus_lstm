@@ -217,6 +217,7 @@ def _visualize_prediction_results(prediction, actual):
     # _send_telegram_photo('picture_vault' + slash + 'prediction.png')
     _send_discord_photo(dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'prediction.png')
 
+
 def _visualize_probability_distribution(prediction):
     # Create the figure
     plt.figure(figsize=(10, 6))
@@ -258,3 +259,117 @@ def _visualize_probability_distribution(prediction):
     _send_discord_photo(save_path)
 
 
+def _visualize_cross_validation_loss_results(results_list):
+    """
+    Visualize loss from a list of training histories with vertical lines for each fold.
+    Adjust y-axis to focus on the main range of values, ignoring initial peaks.
+
+    Parameters:
+    - results_list: list of history objects from each fold.
+    """
+    plt.style.use('default')  # Reset to default for white background
+    fig, ax = plt.subplots(figsize=(14, 8))
+    epoch_counter = 0  # Track cumulative epochs
+
+    # Collect loss and validation loss across all folds
+    combined_loss = []
+    combined_val_loss = []
+
+    for i, fold_history in enumerate(results_list):
+        loss = fold_history['loss']
+        val_loss = fold_history['val_loss']
+
+        # Extend combined metrics and count epochs
+        combined_loss.extend(loss)
+        combined_val_loss.extend(val_loss)
+        epochs = range(epoch_counter, epoch_counter + len(loss))
+
+        # Plot the metrics for this fold
+        ax.plot(epochs, loss, color='blue', label='Training Loss' if i == 0 else "")
+        ax.plot(epochs, val_loss, color='red', label='Validation Loss' if i == 0 else "")
+
+        # Add a vertical line at the end of each fold
+        ax.axvline(x=epoch_counter + len(loss) - 1, color='gray', linestyle='--', linewidth=0.5)
+        epoch_counter += len(loss)
+
+    # Set y-limits based on the 1st and 99th percentiles
+    all_values = combined_loss + combined_val_loss
+    lower_limit = np.percentile(all_values[5:], 1) - 0.01
+    upper_limit = np.percentile(all_values[5:], 99)
+    ax.set_ylim(lower_limit, upper_limit)
+
+    ax.legend(title="Loss Types", loc="upper right")
+    ax.set_title('Loss Across Folds')
+    ax.set_xlabel('Epochs (cumulative across folds)')
+    ax.set_ylabel('Loss')
+
+    # Save the figure
+    slash = _slash_conversion()
+    dir_path = _ROOT_PATH()
+    fig.savefig(dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'loss.png')
+    _send_discord_photo(dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'loss.png')
+
+
+def _visualize_cross_validation_accuracy_results(results_list):
+    """
+    Visualize accuracy-related metrics from a list of training histories with vertical lines for each fold.
+    Adjust y-axis to focus on the main range of values, ignoring initial spikes.
+
+    Parameters:
+    - results_list: list of history objects from each fold.
+    """
+    plt.style.use('default')
+    fig, ax = plt.subplots(figsize=(14, 8))
+    epoch_counter = 0  # Track cumulative epochs
+
+    # Identify accuracy metrics by excluding loss values
+    metric_keys = [key for key in results_list[0] if 'loss' not in key]
+
+    # Initialize combined lists for each metric
+    combined_metrics = {key: [] for key in metric_keys}
+
+    for i, fold_history in enumerate(results_list):
+        # Collect values for each metric
+        for metric in metric_keys:
+            metric_values = fold_history[metric]
+            combined_metrics[metric].extend(metric_values)
+
+            # Plot the metric values with consistent colors across folds
+            epochs = range(epoch_counter, epoch_counter + len(metric_values))
+            ax.plot(epochs, metric_values, label=f"{metric}" if i == 0 else "", color='blue' if 'val' not in metric else 'orange')
+
+        # Add a vertical line at the end of each fold
+        ax.axvline(x=epoch_counter + len(metric_values) - 1, color='gray', linestyle='--', linewidth=0.5)
+        epoch_counter += len(metric_values)
+
+    # Set y-limits based on the 5th and 95th percentiles of combined metrics
+    all_values = [val for metric_values in combined_metrics.values() for val in metric_values]
+    lower_limit = np.percentile(all_values, 1) - 0.01
+    upper_limit = np.percentile(all_values, 99)
+    ax.set_ylim(lower_limit, upper_limit)
+
+    ax.legend(title="Metrics")
+    ax.set_title('Accuracy Metrics Across Folds')
+    ax.set_xlabel('Epochs (cumulative across folds)')
+    ax.set_ylabel('Metric Value')
+
+    # Save the figure
+    slash = _slash_conversion()
+    dir_path = _ROOT_PATH()
+    fig.savefig(dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'accuracy.png')
+    _send_discord_photo(dir_path + slash + 'vaults' + slash + 'picture_vault' + slash + 'accuracy.png')
+
+
+def save_figure(fig, name):
+    """
+    Helper function to save figures and send via Discord.
+
+    Parameters:
+    - fig: The figure to save
+    - name: The name prefix for the saved file
+    """
+    slash = _slash_conversion()
+    dir_path = _ROOT_PATH()
+    save_path = f"{dir_path}{slash}vaults{slash}picture_vault{slash}{name}.png"
+    fig.savefig(save_path)
+    _send_discord_photo(save_path)

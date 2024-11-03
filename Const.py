@@ -13,6 +13,8 @@ TIME_INTERVALS = ['1d', '1h']
 DAILY_ALERT_SOUND_PATH = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\day_alert.mp3"
 HOURLY_ALERT_SOUND_PATH = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\hour_alert.mp3"
 MSE = 'mse'
+CROSS_VALIDATION_CHUNKS = [0.6, 0.7, 0.8, 0.9, 1]
+
 
 class ModelBatches(Enum):
     _1d_10 = {'Corn_Asian_elephant': 0.25,

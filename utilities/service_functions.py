@@ -32,12 +32,12 @@ def calculate_patience(lr: float) -> int:
         - lr == 0.0005: patience = 10
         - For any other lr, the default patience = 5
     """
-    patience = 5
+    patience = 10
     if lr == 0.0001:
-        patience = 20
+        patience = 40
     elif 0.0001 < lr < 0.0005:
-        patience = 15
+        patience = 30
     elif lr == 0.0005:
-        patience = 10
+        patience = 20
     print(f'For given learning rate {lr}, patience is {patience}')
     return patience

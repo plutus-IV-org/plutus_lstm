@@ -4,10 +4,11 @@ from researchers.research_phase_two import _perfect_model, _raw_model_saver
 from messenger_commands.messenger_commands import _send_telegram_msg, _dataframe_to_png, _send_discord_message
 from data_service.data_preparation import DataPreparation
 from data_service.data_transformation import _data_normalisation, _split_data, \
-    _distribution_type, _data_denormalisation, log_z_score_rolling
+    _distribution_type, _data_denormalisation, log_z_score_rolling, cross_validation_data_split
 from messenger_commands.messenger_commands import _visualize_loss_results, _visualize_accuracy_results, \
     _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results, \
-    _visualize_probability_distribution
+    _visualize_probability_distribution, _visualize_cross_validation_accuracy_results, \
+    _visualize_cross_validation_loss_results
 from utilities.metrics import _rmse, _mape, _r, _gradient_accuracy_test, _directional_accuracy, \
     directional_accuracy_score
 from utilities.unique_name_generator import name_generator
@@ -105,22 +106,22 @@ class InitiateResearch:
         # Normalisation
 
         normalised_data = _data_normalisation(df, self.directional_orientation)
-        #normalised_data = log_z_score_rolling(df, 85, self.directional_orientation).dropna()
+        # normalised_data = log_z_score_rolling(df, 85, self.directional_orientation).dropna()
         self.data_table_normalized = normalised_data.copy()
         distribution_type = _distribution_type(df)
 
         text = 'Got ' + distribution_type + ' distribution'
         _send_discord_message(text)
 
-        for p_d in self.past:
-            for f_d in self.future:
-                # Split and fractionating based on dc zscore
-                self.trainX, self.trainY, self.testX, self.testY = _split_data(normalised_data, f_d, p_d,
-                                                                               is_targeted=self.directional_orientation)
         loop_number = 1
         storage = {}
         while loop_number <= self.loops_to_run:
             loop_number += 1
+            for p_d in self.past:
+                for f_d in self.future:
+                    self.trainX, self.trainY, self.testX, self.testY = cross_validation_data_split(normalised_data, f_d,
+                                                                                                   p_d,
+                                                                                                   is_targeted=self.directional_orientation)
             if not self.custom_layers:
                 self.research_results = _run_training(self.trainX, self.trainY, self.asset,
                                                       self.type, self.past, self.future, self.testing,
@@ -139,6 +140,11 @@ class InitiateResearch:
                                                                 self.trainX, self.trainY, self.testX, self.testY,
                                                                 epo=int(self.epo / x),
                                                                 is_targeted=self.directional_orientation)
+
+                # In case of cross-validation we need to extract the biggest chunk and assign to training batches
+                if type(self.trainX) == list:
+                    self.trainX, self.trainY, self.testX, self.testY = self.trainX[-1], self.trainY[-1], self.testX[-1], \
+                                                                       self.testY[-1]
 
                 actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
                                                self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
@@ -225,9 +231,11 @@ class InitiateResearch:
             self.trades_coverage = epochs_test_collector[best_test]['trades_coverage']
             self.confidence_tail = epochs_test_collector[best_test]['confidence tail']
 
-            _visualize_loss_results(self.history)
-            _visualize_accuracy_results(self.history)
+            # _visualize_loss_results(self.history)
+            # _visualize_accuracy_results(self.history)
             # _visualize_mda_results(self.history)
+            _visualize_cross_validation_loss_results(self.history)
+            _visualize_cross_validation_accuracy_results(self.history)
 
             if not self.directional_orientation:
                 _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
