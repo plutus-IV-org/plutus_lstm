@@ -21,7 +21,7 @@ from PATH_CONFIG import _ROOT_PATH
 from distutils.dir_util import copy_tree
 import pickle
 from UI.custom_type import ListboxSelection
-
+from Const import *
 username = os.getlogin()
 
 
@@ -122,6 +122,7 @@ class InitiateResearch:
                     self.trainX, self.trainY, self.testX, self.testY = cross_validation_data_split(normalised_data, f_d,
                                                                                                    p_d,
                                                                                                    is_targeted=self.directional_orientation)
+
             if not self.custom_layers:
                 self.research_results = _run_training(self.trainX, self.trainY, self.asset,
                                                       self.type, self.past, self.future, self.testing,
@@ -230,7 +231,9 @@ class InitiateResearch:
             self.epo = epochs_test_collector[best_test]['epo_div_x']
             self.trades_coverage = epochs_test_collector[best_test]['trades_coverage']
             self.confidence_tail = epochs_test_collector[best_test]['confidence tail']
-
+            self.loss_function = LOSS_FUNCTION
+            self.cross_validation_chunks = CROSS_VALIDATION_CHUNKS
+            self.metrics = METRICS
             # _visualize_loss_results(self.history)
             # _visualize_accuracy_results(self.history)
             # _visualize_mda_results(self.history)

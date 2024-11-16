@@ -317,7 +317,8 @@ def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: s
             da_series = da_series.dropna().reindex(df_tech.index)
             # Ensure the DA series contains only numeric values
             da_series = pd.to_numeric(da_series, errors='coerce')  # Convert non-numeric values to NaN
-
+            da_series.ffill(inplace=True)
+            da_series.bfill(inplace=True)
             # Adjust the normalization to reduce the color contrast (limit extremes in the gradient)
             norm = plt.Normalize(da_series.min() * 0.9, da_series.max())  # Adjust the min/max for normalization
 
@@ -344,7 +345,8 @@ def create_enriched_scatter_plot(df: pd.DataFrame, asset_name: str, plot_path: s
 
             # Plot DA values within the bars
             for i, value in enumerate(da_series):
-                ax3.text(df_tech.index[i], value*0.9, f'{value:.2f}', ha='center', va='center', fontsize=6, weight='bold',
+                ax3.text(df_tech.index[i], value * 0.9, f'{value:.2f}', ha='center', va='center', fontsize=6,
+                         weight='bold',
                          color='black', alpha=0.8)
 
                 # Save the plot with better padding
@@ -358,6 +360,7 @@ def prepare_output_report(file_path: str, stored_data: Dict[str, Dict[str, Any]]
     Prepares an output report by adding new sheets with processed tables, conditional formatting, borders, and a scatter plot
     to an existing Excel file, saving the result to a new location. All 'Analysis' sheets will be moved to the beginning.
     """
+
     # Use XlsxWriter to enable adding plots and formatting
     with pd.ExcelWriter(output_file_path, engine='xlsxwriter') as writer:
         # Load the existing data into the writer
@@ -484,10 +487,10 @@ def prepare_output_report(file_path: str, stored_data: Dict[str, Dict[str, Any]]
                 last_row_idx = start_row + len(combined_df)  # The last row with data
 
                 # Loop through columns B onwards to find the first non-NaN value and highlight it
-                for col in range(1, len(combined_df.columns) + 1):
+                for col in range(0, len(combined_df.columns) + 1):
                     value = combined_df.iloc[-1, col]
                     if not pd.isna(value):  # If the value is not NaN, highlight it
-                        worksheet.write(last_row_idx, col, value, blue_background_format)
+                        worksheet.write(last_row_idx, col + 1, value, blue_background_format)
                         break  # Stop after highlighting the first non-NaN value
 
                 # Create scatter plot with time as X-axis and price as Y-axis, and enrich with forecast rectangles

@@ -10,6 +10,7 @@ import keras
 from PATH_CONFIG import _ROOT_PATH
 from utilities.service_functions import _slash_conversion, calculate_patience
 from datetime import datetime
+from keras.losses import LogCosh
 
 plt.style.use('ggplot')
 import warnings
@@ -123,7 +124,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX_list, trainY_lis
     #                 metrics=['accuracy'])
     # else:
     mod.add(Dense(trainY_list[0].shape[1]))
-    mod.compile(optimizer=keras.optimizers.Adam(lr=best_model['lr']), loss='mse', metrics=['mse'])
+    mod.compile(optimizer=keras.optimizers.Adam(lr=best_model['lr']), loss=LOSS_FUNCTION, metrics=METRICS)
 
     earlystop = EarlyStopping(monitor='val_loss', min_delta=0.0001, patience=calculate_patience(best_model['lr']),
                               verbose=1, mode='min')

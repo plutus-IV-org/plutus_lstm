@@ -301,8 +301,8 @@ def data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = Fal
     """
 
     # Split the DataFrame into training (80%) and testing (20%) sets
-    dataset_train = df.iloc[:int(df.shape[0] * 0.8), :]
-    dataset_test = df.iloc[int(df.shape[0] * 0.8):, :]
+    dataset_train = df.iloc[:int(df.shape[0] * 0.6), :]
+    dataset_test = df.iloc[int(df.shape[0] * 0.6):, :]
 
     # Generate input/target sequences for both training and testing sets
     train_x, train_y = fraction(dataset_train, past, future, is_targeted)

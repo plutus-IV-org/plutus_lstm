@@ -10,13 +10,10 @@ from app_service.app import generate_app
 import threading
 import logging
 from distutils.dir_util import copy_tree
+from Const import *
 
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
-
-testing = False
-directional_orientation = True
-use_means = False
 
 if testing:
     df = pd.read_excel(r'inputs/init_test.xlsx')
@@ -45,13 +42,13 @@ for x in range(len(df.index)):
     epo = int(df.loc[x, 'EPOCHS'])
     interval = df.loc[x, 'INTERVAL']
 
-    i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval,
-                         directional_orientation=directional_orientation, use_means=use_means)
+    i = InitiateResearch(asset, df_type, [pd], [fd], epo, TESTING, source, interval,
+                         directional_orientation=DIRECTIONAL_ORIENTATION, use_means=USE_MEANS)
     research_dict = i._initialize_training()
     self_container[research_dict['unique_name']] = research_dict
     """
     try:
-        i = InitiateResearch(asset, df_type, [pd], [fd], epo, testing, source, interval)
+        i = InitiateResearch(asset, df_type, [pd], [fd], epo, TESTING, source, interval)
         i._initialize_training()
         self_container[i.unique_name] = i.__dict__
     except Exception:
