@@ -136,7 +136,7 @@ class InitiateResearch:
             epochs_test_collector = {}
 
             for x in [1]:
-                history, predicted_test_x, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
+                history, training_predictions, validation_predictions, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
                                                                 self.research_results,
                                                                 self.trainX, self.trainY, self.testX, self.testY,
                                                                 epo=int(self.epo / x),
@@ -147,23 +147,37 @@ class InitiateResearch:
                     self.trainX, self.trainY, self.testX, self.testY = self.trainX[-1], self.trainY[-1], self.testX[-1], \
                                                                        self.testY[-1]
 
+
+                actual_training = _data_denormalisation(self.trainY, self.data_table[['Close']], int(self.future[0]),
+                                               self.trainY, is_targeted=self.directional_orientation).reshape(-1, 1)
+
                 actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
                                                self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
                 if self.directional_orientation:
                     confidence_levels = confidence_tails()
                     confidence_test_collector = {}
                     for tail in confidence_levels:
-                        yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
+                        training_pred = _data_denormalisation(training_predictions, self.data_table[['Close']], int(self.future[0]),
+                                                     self.trainY, is_targeted=self.directional_orientation,
+                                                     confidence_lvl=tail).reshape(-1, 1)
+                        training_summary_table, training_trades_coverage = _directional_accuracy(actual_training, training_pred, {'future_days': f_d},
+                                                                               is_targeted=self.directional_orientation)
+
+                        yhat = _data_denormalisation(validation_predictions, self.data_table[['Close']], int(self.future[0]),
                                                      self.testY, is_targeted=self.directional_orientation,
                                                      confidence_lvl=tail).reshape(-1, 1)
                         summary_table, trades_coverage = _directional_accuracy(actual, yhat, {'future_days': f_d},
                                                                                is_targeted=self.directional_orientation)
+
+
+
                         dta_score = directional_accuracy_score(summary_table, trades_coverage)
-                        confidence_test_collector[str(tail)] = dta_score, tail, yhat
+                        confidence_test_collector[str(tail)] = dta_score, tail, yhat, training_pred
                     confidence_level, results = max(confidence_test_collector.items(), key=lambda item: item[1][0])
                     yhat = results[2]
+                    training_pred = results[3]
                 else:
-                    yhat = _data_denormalisation(predicted_test_x, self.data_table[['Close']], int(self.future[0]),
+                    yhat = _data_denormalisation(validation_predictions, self.data_table[['Close']], int(self.future[0]),
                                                  self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
                     confidence_level = .5
                 # Metrics
@@ -195,13 +209,17 @@ class InitiateResearch:
                 slash = _slash_conversion()
                 unique_name = name_generator()
 
+                sum_frame3, training_trades_coverage = _directional_accuracy(actual_training, training_pred, best_model,
+                                                                    is_targeted=self.directional_orientation)
+                sum_frame3.index = fd_index
+
                 sum_frame1.loc['Directional accuracy score'] = str(round(dta, 3))
                 sum_frame1.loc['Name'] = unique_name
                 sum_frame1.loc['Means applies'] = self.use_means
                 sum_frame1.loc['Selected regressors'] = str(self.columns_names.to_list())
                 # sum_frame1.loc['Data Columns'] = self.data_table.columns.tolist()
 
-                collected_data = {'history': history, 'predicted_test_x': predicted_test_x, 'mod': mod,
+                collected_data = {'history': history, 'predicted_test_x': validation_predictions, 'mod': mod,
                                   'yhat': yhat,
                                   'actual': actual, 'RMSE': RMSE, 'MAPE': MAPE, 'R': R, 'sf': sf,
                                   'sum_frame': sum_frame,
@@ -251,13 +269,14 @@ class InitiateResearch:
                                                    self.mean_directional_accuracy, self.source,
                                                    self.unique_name, self.mod, is_targeted=self.directional_orientation)
 
-            _dataframe_to_png(self.sum_frame1, "table_training_details")
+            _dataframe_to_png(self.sum_frame1, " ")
 
             _dataframe_to_png(self.sum_frame2, "table_dir_vector")
-
             if self.directional_orientation:
                 _dataframe_to_png(self.trades_coverage, "trades_coverage")
-
+            _dataframe_to_png(sum_frame3, "table_dir_vector_training")
+            if self.directional_orientation:
+                _dataframe_to_png(training_trades_coverage, "trades_coverage")
             _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
 
             self.general_model_table.to_csv(self.raw_model_path[:-7] + "general_model_table.csv", index=False,

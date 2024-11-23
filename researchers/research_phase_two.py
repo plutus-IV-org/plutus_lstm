@@ -117,12 +117,6 @@ def _perfect_model(testing, asset, df_normalised, table, trainX_list, trainY_lis
         mod.add(LSTM(int(best_model['third_lstm_layer']), activation='tanh'))
         mod.add(Dropout(best_model['dropout']))
 
-    # Add the output layer based on the problem type
-    # if is_targeted:
-    #     mod.add(Dense(trainY_list[0].shape[1], activation='sigmoid'))
-    #     mod.compile(optimizer=keras.optimizers.Adam(lr=best_model['lr']), loss='binary_crossentropy',
-    #                 metrics=['accuracy'])
-    # else:
     mod.add(Dense(trainY_list[0].shape[1]))
     mod.compile(optimizer=keras.optimizers.Adam(lr=best_model['lr']), loss=LOSS_FUNCTION, metrics=METRICS)
 
@@ -141,9 +135,10 @@ def _perfect_model(testing, asset, df_normalised, table, trainX_list, trainY_lis
         all_fold_histories.append(history.history)
 
     # Make predictions with the final trained model on the last fold
-    prediction = mod.predict(testX_list[-1]).tolist()
+    training_prediction = mod.predict(trainX_list[-1]).tolist()
+    validation_prediction = mod.predict(testX_list[-1]).tolist()
 
-    return all_fold_histories, prediction, mod
+    return all_fold_histories, training_prediction, validation_prediction, mod
 
 
 def _raw_model_saver(asset, df_type, epo, past, future, interval, dta, source, unique_name, mod,

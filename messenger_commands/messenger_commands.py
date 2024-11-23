@@ -75,31 +75,46 @@ def _send_telegram_photo(photo_name):
 
 
 def _dataframe_to_png(df, table_name):
-    # set a figure space
-    fig, ax = plt.subplots()
-    # get rid of axes
+    """
+    Convert a DataFrame to a PNG image with a title.
+
+    Parameters:
+    - df: pd.DataFrame, the data to render as a table.
+    - table_name: str, the title to be added at the top of the plot.
+    """
+    # Set a figure space
+    fig, ax = plt.subplots(figsize=(12, 4))  # Adjust figsize as needed
+
+    # Add the table name as a title with reduced padding
+    plt.title(table_name, fontsize=14, fontweight='bold', pad=2)  # Significantly reduced padding
+
+    # Get rid of axes
     ax.xaxis.set_visible(False)
     ax.yaxis.set_visible(False)
-    # no frame
+
+    # No frame
     ax.set_frame_on(False)
-    # turn DataFrame into a table format
+
+    # Turn DataFrame into a table format
     tab = table(ax,
                 df,
-                loc="upper right",
+                loc="center",  # Adjust location
                 colWidths=[0.2] * len(df.columns))
-    # set font manually
+
+    # Set font manually
     tab.auto_set_font_size(False)
     tab.set_fontsize(10)
 
-    # set table size
+    # Set table size
     tab.scale(2, 2)
-    plt.subplots_adjust
 
+    # Save the table as an image
     slash = _slash_conversion()
     dir_path = _ROOT_PATH()
     plt.savefig(dir_path + slash + 'vaults' + slash + "picture_vault" + slash + table_name + ".png",
                 bbox_inches='tight')
-    # _send_telegram_photo("picture_vault/" + table_name + ".png")
+
+    # Send to Discord (optional)
     _send_discord_photo(dir_path + slash + 'vaults' + slash + "picture_vault" + slash + table_name + ".png")
 
 
@@ -336,7 +351,8 @@ def _visualize_cross_validation_accuracy_results(results_list):
 
             # Plot the metric values with consistent colors across folds
             epochs = range(epoch_counter, epoch_counter + len(metric_values))
-            ax.plot(epochs, metric_values, label=f"{metric}" if i == 0 else "", color='blue' if 'val' not in metric else 'orange')
+            ax.plot(epochs, metric_values, label=f"{metric}" if i == 0 else "",
+                    color='blue' if 'val' not in metric else 'orange')
 
         # Add a vertical line at the end of each fold
         ax.axvline(x=epoch_counter + len(metric_values) - 1, color='gray', linestyle='--', linewidth=0.5)

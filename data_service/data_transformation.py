@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from Const import CROSS_VALIDATION_CHUNKS
 
+
 def _data_normalisation(df, is_targeted: bool = False):
     """
     1. Creating daily changes
