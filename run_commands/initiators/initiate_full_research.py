@@ -1,4 +1,7 @@
 import os
+
+import numpy as np
+
 from researchers.research_phase_one import _run_training
 from researchers.research_phase_two import _perfect_model, _raw_model_saver
 from messenger_commands.messenger_commands import _send_telegram_msg, _dataframe_to_png, _send_discord_message
@@ -8,7 +11,7 @@ from data_service.data_transformation import _data_normalisation, _split_data, \
 from messenger_commands.messenger_commands import _visualize_loss_results, _visualize_accuracy_results, \
     _visualize_prediction_results, _visualize_prediction_results_daily, _visualize_mda_results, \
     _visualize_probability_distribution, _visualize_cross_validation_accuracy_results, \
-    _visualize_cross_validation_loss_results
+    _visualize_cross_validation_loss_results, _dataframes_to_single_png
 from utilities.metrics import _rmse, _mape, _r, _gradient_accuracy_test, _directional_accuracy, \
     directional_accuracy_score
 from utilities.unique_name_generator import name_generator
@@ -22,6 +25,7 @@ from distutils.dir_util import copy_tree
 import pickle
 from UI.custom_type import ListboxSelection
 from Const import *
+
 username = os.getlogin()
 
 
@@ -119,9 +123,10 @@ class InitiateResearch:
             loop_number += 1
             for p_d in self.past:
                 for f_d in self.future:
-                    self.trainX, self.trainY, self.testX, self.testY = cross_validation_data_split(normalised_data, f_d,
-                                                                                                   p_d,
-                                                                                                   is_targeted=self.directional_orientation)
+                    self.trainX, self.trainY, self.testX, self.testY, self.evalX, self.evalY, self.list_of_index = cross_validation_data_split(
+                        normalised_data, f_d,
+                        p_d,
+                        is_targeted=self.directional_orientation)
 
             if not self.custom_layers:
                 self.research_results = _run_training(self.trainX, self.trainY, self.asset,
@@ -136,48 +141,64 @@ class InitiateResearch:
             epochs_test_collector = {}
 
             for x in [1]:
-                history, training_predictions, validation_predictions, mod = _perfect_model(self.testing, self.asset, self.data_table_normalized,
-                                                                self.research_results,
-                                                                self.trainX, self.trainY, self.testX, self.testY,
-                                                                epo=int(self.epo / x),
-                                                                is_targeted=self.directional_orientation)
+                history, training_predictions, validation_predictions, mod = _perfect_model(self.testing, self.asset,
+                                                                                            self.data_table_normalized,
+                                                                                            self.research_results,
+                                                                                            self.trainX, self.trainY,
+                                                                                            self.testX, self.testY,
+                                                                                            epo=int(self.epo / x),
+                                                                                            is_targeted=self.directional_orientation)
 
                 # In case of cross-validation we need to extract the biggest chunk and assign to training batches
                 if type(self.trainX) == list:
-                    self.trainX, self.trainY, self.testX, self.testY = self.trainX[-1], self.trainY[-1], self.testX[-1], \
-                                                                       self.testY[-1]
+                    self.trainX, self.trainY, self.testX, self.testY, self.evalX, self.evalY = self.trainX[-1], \
+                                                                                               self.trainY[-1], \
+                                                                                               self.testX[-1], \
+                                                                                               self.testY[-1], \
+                                                                                               self.evalX[-1], \
+                                                                                               self.evalY[-1]
 
+                eval_predictions = mod.predict(self.evalX, verbose=0)
 
                 actual_training = _data_denormalisation(self.trainY, self.data_table[['Close']], int(self.future[0]),
-                                               self.trainY, is_targeted=self.directional_orientation).reshape(-1, 1)
+                                                        self.trainY, is_targeted=self.directional_orientation).reshape(
+                    -1, 1)
 
                 actual = _data_denormalisation(self.testY, self.data_table[['Close']], int(self.future[0]),
                                                self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
+
+                actual_eval = _data_denormalisation(self.evalY, self.data_table[['Close']], int(self.future[0]),
+                                                    self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
                 if self.directional_orientation:
                     confidence_levels = confidence_tails()
                     confidence_test_collector = {}
                     for tail in confidence_levels:
-                        training_pred = _data_denormalisation(training_predictions, self.data_table[['Close']], int(self.future[0]),
-                                                     self.trainY, is_targeted=self.directional_orientation,
-                                                     confidence_lvl=tail).reshape(-1, 1)
-                        training_summary_table, training_trades_coverage = _directional_accuracy(actual_training, training_pred, {'future_days': f_d},
-                                                                               is_targeted=self.directional_orientation)
+                        training_pred = _data_denormalisation(training_predictions, self.data_table[['Close']],
+                                                              int(self.future[0]),
+                                                              self.trainY, is_targeted=self.directional_orientation,
+                                                              confidence_lvl=tail).reshape(-1, 1)
 
-                        yhat = _data_denormalisation(validation_predictions, self.data_table[['Close']], int(self.future[0]),
+                        eval_pred = _data_denormalisation(eval_predictions, self.data_table[['Close']],
+                                                          int(self.future[0]),
+                                                          self.testY, is_targeted=self.directional_orientation,
+                                                          confidence_lvl=tail).reshape(-1, 1)
+
+                        yhat = _data_denormalisation(validation_predictions, self.data_table[['Close']],
+                                                     int(self.future[0]),
                                                      self.testY, is_targeted=self.directional_orientation,
                                                      confidence_lvl=tail).reshape(-1, 1)
                         summary_table, trades_coverage = _directional_accuracy(actual, yhat, {'future_days': f_d},
                                                                                is_targeted=self.directional_orientation)
 
-
-
                         dta_score = directional_accuracy_score(summary_table, trades_coverage)
-                        confidence_test_collector[str(tail)] = dta_score, tail, yhat, training_pred
+                        confidence_test_collector[str(tail)] = dta_score, tail, yhat, training_pred, eval_pred
                     confidence_level, results = max(confidence_test_collector.items(), key=lambda item: item[1][0])
                     yhat = results[2]
                     training_pred = results[3]
+                    eval_pred = results[4]
                 else:
-                    yhat = _data_denormalisation(validation_predictions, self.data_table[['Close']], int(self.future[0]),
+                    yhat = _data_denormalisation(validation_predictions, self.data_table[['Close']],
+                                                 int(self.future[0]),
                                                  self.testY, is_targeted=self.directional_orientation).reshape(-1, 1)
                     confidence_level = .5
                 # Metrics
@@ -202,18 +223,43 @@ class InitiateResearch:
                 sum_frame1 = pd.concat([best_model, sf])
                 sum_frame1 = sum_frame1.to_frame()
 
+                sum_frame3, training_trades_coverage = _directional_accuracy(actual_training, training_pred, best_model,
+                                                                             is_targeted=self.directional_orientation)
+                sum_frame3.index = fd_index
+                training_trades_coverage.index = fd_index
+
+                sum_frame4, eval_trades_coverage = _directional_accuracy(actual_eval, eval_pred, best_model,
+                                                                         is_targeted=self.directional_orientation)
+                sum_frame4.index = fd_index
+                eval_trades_coverage.index = fd_index
+
                 sum_frame2, trades_coverage = _directional_accuracy(actual, yhat, best_model,
                                                                     is_targeted=self.directional_orientation)
                 sum_frame2.index = fd_index
-                dta = directional_accuracy_score(sum_frame2, trades_coverage)
+                trades_coverage.index = fd_index
+
+                dta_test = directional_accuracy_score(sum_frame4, eval_trades_coverage)
+                dta_validation = directional_accuracy_score(sum_frame2, trades_coverage)
+                dta_training = directional_accuracy_score(sum_frame3, training_trades_coverage)
+                dta_std = np.std([dta_training, dta_validation, dta_test])
+                dta_total = (dta_training + dta_validation + dta_test) / 3 - dta_std
                 slash = _slash_conversion()
                 unique_name = name_generator()
 
-                sum_frame3, training_trades_coverage = _directional_accuracy(actual_training, training_pred, best_model,
-                                                                    is_targeted=self.directional_orientation)
-                sum_frame3.index = fd_index
+                train_start = self.list_of_index[0][-len(self.trainY):][0].date().strftime("%d/%m/%y")
+                train_end = self.list_of_index[0][-len(self.trainY):][-1].date().strftime("%d/%m/%y")
 
-                sum_frame1.loc['Directional accuracy score'] = str(round(dta, 3))
+                validation_start = self.list_of_index[1][-len(self.testY):][0].date().strftime("%d/%m/%y")
+                validation_end = self.list_of_index[1][-len(self.testY):][-1].date().strftime("%d/%m/%y")
+
+                test_start = self.list_of_index[2][-len(self.evalY):][0].date().strftime("%d/%m/%y")
+                test_end = self.list_of_index[2][-len(self.evalY):][-1].date().strftime("%d/%m/%y")
+
+                sum_frame1.loc[f'DA training ({train_start} - {train_end})'] = str(round(dta_training, 3))
+                sum_frame1.loc[f'DA validation ({validation_start} - {validation_end})'] = str(round(dta_validation, 3))
+                sum_frame1.loc[f'DA test ({test_start} - {test_end})'] = str(round(dta_test, 3))
+                sum_frame1.loc['DA std'] = str(round(dta_std, 3))
+                sum_frame1.loc['Directional accuracy score'] = str(round(dta_total, 3))
                 sum_frame1.loc['Name'] = unique_name
                 sum_frame1.loc['Means applies'] = self.use_means
                 sum_frame1.loc['Selected regressors'] = str(self.columns_names.to_list())
@@ -223,12 +269,12 @@ class InitiateResearch:
                                   'yhat': yhat,
                                   'actual': actual, 'RMSE': RMSE, 'MAPE': MAPE, 'R': R, 'sf': sf,
                                   'sum_frame': sum_frame,
-                                  'sum_frame1': sum_frame1, 'sum_frame2': sum_frame2, 'dta': dta,
+                                  'sum_frame1': sum_frame1, 'sum_frame2': sum_frame2, 'dta_total': dta_total,
                                   'unique_name': unique_name, 'epo_div_x': int(self.epo / x),
                                   'trades_coverage': trades_coverage, 'confidence tail': confidence_level}
                 epochs_test_collector[x] = collected_data.copy()
             # Find the best test result based on the highest directional total accuracy (dta)
-            best_test = max(epochs_test_collector, key=lambda x: epochs_test_collector[x]['dta'])
+            best_test = max(epochs_test_collector, key=lambda x: epochs_test_collector[x]['dta_total'])
 
             # Set the self variables of your class to the best test result
             self.history = epochs_test_collector[best_test]['history']
@@ -243,7 +289,7 @@ class InitiateResearch:
             self.sum_frame = epochs_test_collector[best_test]['sum_frame']
             self.sum_frame1 = epochs_test_collector[best_test]['sum_frame1']
             self.sum_frame2 = epochs_test_collector[best_test]['sum_frame2']
-            self.mean_directional_accuracy = epochs_test_collector[best_test]['dta']
+            self.mean_directional_accuracy = epochs_test_collector[best_test]['dta_total']
             self.unique_name = epochs_test_collector[best_test]['unique_name']
             self.general_model_table = epochs_test_collector[best_test]['sum_frame1']
             self.epo = epochs_test_collector[best_test]['epo_div_x']
@@ -271,17 +317,25 @@ class InitiateResearch:
 
             _dataframe_to_png(self.sum_frame1, " ")
 
-            _dataframe_to_png(self.sum_frame2, "table_dir_vector")
             if self.directional_orientation:
-                _dataframe_to_png(self.trades_coverage, "trades_coverage")
-            _dataframe_to_png(sum_frame3, "table_dir_vector_training")
-            if self.directional_orientation:
-                _dataframe_to_png(training_trades_coverage, "trades_coverage")
-            _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
+                dataframes = [self.sum_frame2, self.trades_coverage, sum_frame3, training_trades_coverage,
+                              sum_frame4, eval_trades_coverage]
+                table_names = [
+                    "Train results",
+                    "Train coverage",
+                    "Validate results",
+                    "Validate coverage",
+                    "Test results",
+                    "Test coverage"
+                ]
+
+                _dataframes_to_single_png(dataframes, table_names, "combined_tables")
+            else:
+                _dataframe_to_png(self.sum_frame2, "table_dir_vector")
 
             self.general_model_table.to_csv(self.raw_model_path[:-7] + "general_model_table.csv", index=False,
                                             header=False)
-
+            _send_discord_message('2nd phase for ' + self.asset + ' ' + self.type + ' has successfully finished')
             old_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'picture_vault'
             new_abs_path = self.raw_model_path[:-7]
             copy_tree(old_abs_path, new_abs_path)
@@ -309,7 +363,7 @@ class InitiateResearch:
                 print(self.unique_name + ' has been saved in models vault')
                 return None
 
-            if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta > 0.51 and not self.testing:
+            if self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and dta_total > 0.51 and not self.testing:
                 save_model_in_model_vault()
 
             storage[self.unique_name] = vars(self).copy()

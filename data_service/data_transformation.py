@@ -1,6 +1,9 @@
+from typing import Tuple, List
 from fitter import Fitter, get_common_distributions
 import pandas as pd
 import numpy as np
+from numpy import ndarray
+
 from Const import CROSS_VALIDATION_CHUNKS
 
 
@@ -266,10 +269,10 @@ def fraction(df: pd.DataFrame, n_past: int, n_future: int, is_targeted: bool = F
 
 
 def data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = False) -> tuple[
-    np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    ndarray, ndarray, ndarray, ndarray, ndarray, ndarray, List[pd.Timestamp]]:
     """
-    Splits the input DataFrame into training and testing sets based on the provided 'future' and 'past' time steps.
-    It also generates the input sequences (trainX, testX) and their corresponding targets (trainY, testY).
+    Splits the input DataFrame into training, testing, and evaluation sets based on the provided 'future' and 'past' time steps.
+    It also generates the input sequences (trainX, evalX, testX) and their corresponding targets (trainY, evalY, testY).
 
     Parameters:
     ----------
@@ -294,6 +297,12 @@ def data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = Fal
     trainY : np.ndarray
         A 2D array of target sequences for the training set, with shape (num_samples, num_future_steps).
 
+    evalX : np.ndarray
+        A 3D array of input sequences for the evaluation set, with shape (num_samples, past, num_features).
+
+    evalY : np.ndarray
+        A 2D array of target sequences for the evaluation set, with shape (num_samples, num_future_steps).
+
     testX : np.ndarray
         A 3D array of input sequences for the testing set, with shape (num_samples, past, num_features).
 
@@ -301,21 +310,26 @@ def data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = Fal
         A 2D array of target sequences for the testing set, with shape (num_samples, num_future_steps).
     """
 
-    # Split the DataFrame into training (80%) and testing (20%) sets
+    # Split the DataFrame into training (60%), evaluation (20%), and testing (20%) sets
     dataset_train = df.iloc[:int(df.shape[0] * 0.6), :]
-    dataset_test = df.iloc[int(df.shape[0] * 0.6):, :]
+    dataset_eval = df.iloc[int(df.shape[0] * 0.6):int(df.shape[0] * 0.95), :]
+    dataset_test = df.iloc[int(df.shape[0] * 0.95):, :]
 
-    # Generate input/target sequences for both training and testing sets
+    # Generate input/target sequences for all sets
     train_x, train_y = fraction(dataset_train, past, future, is_targeted)
+    eval_x, eval_y = fraction(dataset_eval, past, future, is_targeted)
     test_x, test_y = fraction(dataset_test, past, future, is_targeted)
 
     # Convert lists to NumPy arrays for compatibility with LSTM models
     train_x = np.array(train_x, dtype=float)
     train_y = array_maker(train_y)  # Convert to 2D array using the array_maker function
+    eval_x = np.array(eval_x, dtype=float)
+    eval_y = array_maker(eval_y)
     test_x = np.array(test_x, dtype=float)
     test_y = array_maker(test_y)
 
-    return train_x, train_y, test_x, test_y
+    return train_x, train_y, eval_x, eval_y, test_x, test_y, [dataset_train.index, dataset_eval.index,
+                                                              dataset_test.index]
 
 
 def cross_validation_data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = False):
@@ -330,11 +344,15 @@ def cross_validation_data_split(df: pd.DataFrame, future: int, past: int, is_tar
     Returns:
     - train_x_list: A list of 3D arrays of training input sequences for each cross-validation chunk.
     - train_y_list: A list of 2D arrays of training target sequences for each cross-validation chunk.
-    - val_x_list: A list of 3D arrays of validation input sequences for each cross-validation chunk.
-    - val_y_list: A list of 2D arrays of validation target sequences for each cross-validation chunk.
+    - eval_x_list: A list of 3D arrays of evaluation input sequences for each cross-validation chunk.
+    - eval_y_list: A list of 2D arrays of evaluation target sequences for each cross-validation chunk.
+    - test_x_list: A list of 3D arrays of testing input sequences for each cross-validation chunk.
+    - test_y_list: A list of 2D arrays of testing target sequences for each cross-validation chunk.
     """
 
-    train_x_list, train_y_list, val_x_list, val_y_list = [], [], [], []
+    train_x_list, train_y_list = [], []
+    eval_x_list, eval_y_list = [], []
+    test_x_list, test_y_list = [], []
 
     # Loop over each percentage chunk from CROSS_VALIDATION_CHUNKS
     for chunk in CROSS_VALIDATION_CHUNKS:
@@ -344,16 +362,19 @@ def cross_validation_data_split(df: pd.DataFrame, future: int, past: int, is_tar
         # Create a subset of the data for the current chunk
         subset_df = df.iloc[:current_train_size, :]
 
-        # Use the existing data_split function to get train/validation sets for the current chunk
-        train_x, train_y, val_x, val_y = data_split(subset_df, future, past, is_targeted)
+        # Use the existing data_split function to get train/eval/test sets for the current chunk
+        train_x, train_y, eval_x, eval_y, test_x, test_y, list_of_index = data_split(subset_df, future, past,
+                                                                                     is_targeted)
 
         # Append the results to the respective lists
         train_x_list.append(train_x)
         train_y_list.append(train_y)
-        val_x_list.append(val_x)
-        val_y_list.append(val_y)
+        eval_x_list.append(eval_x)
+        eval_y_list.append(eval_y)
+        test_x_list.append(test_x)
+        test_y_list.append(test_y)
 
-    return train_x_list, train_y_list, val_x_list, val_y_list
+    return train_x_list, train_y_list, eval_x_list, eval_y_list, test_x_list, test_y_list, list_of_index
 
 
 def partial_data_split(df: pd.DataFrame, future: int, past: int, is_targeted: bool = False):

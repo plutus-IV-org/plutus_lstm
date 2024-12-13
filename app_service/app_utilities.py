@@ -406,7 +406,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
     combined_directions[abs(combined_directions) == 2] = 1
 
     # Directional accuracy score
-    directional_accuracy_score = result_df['6 months']
+    directional_accuracy_score = result_df['L_126']
 
     # Calculating directional accuracy
     actual_percentage_change = auxiliary_df.loc[matching_indexes].T.pct_change().T.dropna(axis=1).values

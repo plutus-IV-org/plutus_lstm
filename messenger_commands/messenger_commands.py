@@ -74,6 +74,67 @@ def _send_telegram_photo(photo_name):
     print(requests.post(url, files={'photo': img}))
 
 
+def _dataframes_to_single_png(dfs, table_names, file_name):
+    """
+    Convert multiple DataFrames to a single PNG image with separate tables arranged in rows and columns.
+
+    Parameters:
+    - dfs: list of pd.DataFrame, the data to render as tables.
+    - table_names: list of str, the titles for each table.
+    - file_name: str, the name of the output file.
+    """
+    # Round the DataFrame values to 2 decimals
+    dfs = [df.round(2) for df in dfs]
+
+    num_tables = len(dfs)
+    cols = 2  # Number of tables per row
+    rows = (num_tables + cols - 1) // cols  # Calculate number of rows needed
+
+    fig, axes = plt.subplots(rows, cols, figsize=(12, 4 * rows))  # Adjust height for rows
+
+    # If only one row of tables, ensure axes is iterable
+    if rows == 1:
+        axes = [axes]
+
+    # Flatten axes for easy indexing
+    axes = np.array(axes).flatten()
+
+    for i, (ax, df, title) in enumerate(zip(axes, dfs, table_names)):
+        # Add the table name as a title with reduced padding
+        ax.set_title(title, fontsize=14, fontweight='bold', pad=4)  # Reduced padding from 10 to 4
+
+        # Get rid of axes
+        ax.xaxis.set_visible(False)
+        ax.yaxis.set_visible(False)
+
+        # No frame
+        ax.set_frame_on(False)
+
+        # Turn DataFrame into a table format
+        tab = table(ax, df, loc="center", colWidths=[0.2] * len(df.columns))
+
+        # Set font and scale
+        tab.auto_set_font_size(False)
+        tab.set_fontsize(10)
+        tab.scale(1.5, 1.5)
+
+    # Hide unused axes
+    for ax in axes[len(dfs):]:
+        ax.axis("off")
+
+    # Adjust layout
+    plt.tight_layout()
+
+    # Save the table as an image
+    slash = _slash_conversion()
+    dir_path = _ROOT_PATH()
+    plt.savefig(dir_path + slash + 'vaults' + slash + "picture_vault" + slash + file_name + ".png",
+                bbox_inches='tight')
+
+    # Send to Discord (optional)
+    _send_discord_photo(dir_path + slash + 'vaults' + slash + "picture_vault" + slash + file_name + ".png")
+
+
 def _dataframe_to_png(df, table_name):
     """
     Convert a DataFrame to a PNG image with a title.
