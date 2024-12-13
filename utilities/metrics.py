@@ -190,8 +190,8 @@ def _directional_accuracy(actual, predicted, best_model, is_targeted: bool = Fal
     result_df = pd.DataFrame(total_accuracy)
     result_df = pd.concat([result_df, accuracy_6_months, accuracy_1_year, long_accuracy, short_accuracy], axis=1)
     trades_coverage_df = pd.concat([total_cov, six_month_cov, one_year_cov, long_cov, short_cov], axis=1)
-    result_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
-    trades_coverage_df.columns = ['Directional accuracy total', '6 months', '1 year', 'Long', 'Short']
+    result_df.columns = ['DA total', 'L_126', 'L_252', 'Long', 'Short']
+    trades_coverage_df.columns = ['Cov total', 'L_126', 'L_252', 'Long', 'Short']
     return result_df, trades_coverage_df
 
 

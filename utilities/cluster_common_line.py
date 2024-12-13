@@ -26,7 +26,7 @@ def sum_values(dictionary: Dict[int, pd.DataFrame], weights: np.array, real_df: 
         result_df, trades_coverage_df = _directional_accuracy(real_df, total,
                                                               best_model={'future_days': len(total.columns)},
                                                               reshape_required=False)
-        directional_accuracy_score = result_df['6 months'].mean()
+        directional_accuracy_score = result_df['L_126'].mean()
         return directional_accuracy_score, total
 
 

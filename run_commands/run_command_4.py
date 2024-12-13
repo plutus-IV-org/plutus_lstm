@@ -7,4 +7,4 @@ sys.path.insert(0, os.getcwd())
 
 from app_service.app import generate_app
 
-generate_app("crypto")
+generate_app("cross_validation")

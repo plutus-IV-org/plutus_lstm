@@ -18,10 +18,10 @@ log.setLevel(logging.ERROR)
 
 if TESTING:
     df = pd.read_excel(r'inputs/init_test.xlsx')
-    # df = pd.read_json(r'service_space/asset_config_test.json')
+
 else:
     df = pd.read_excel(r'inputs/init.xlsx')
-    # df = pd.read_json(r'service_space/asset_config.json')
+
 
 self_container = {}
 for x in range(len(df.index)):
