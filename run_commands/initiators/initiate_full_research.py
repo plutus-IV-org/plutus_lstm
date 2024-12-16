@@ -265,116 +265,143 @@ class InitiateResearch:
 
             eval_predictions = mod.predict(self.evalX, verbose=0)
 
-            (yhat, actual, actual_training, actual_eval,
+            (train_pred, val_pred, test_pred, train_actual, val_actual, test_actual,
              best_confidence_level) = self._denormalize_and_select_confidence(
-                df, training_predictions, validation_predictions, eval_predictions
+                training_predictions, validation_predictions, eval_predictions
             )
-
-            # Compute metrics
-            RMSE = _rmse(yhat, actual)
-            MAPE = _mape(yhat, actual)
-            R = _r(yhat, actual)
 
             # Extract best model or custom layers
             best_model = self._get_best_model_params()
 
             # Gradient accuracy test
-            std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(yhat, actual, best_model)
+            std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(val_pred, val_actual, best_model)
 
-            # Summaries for tables and direction accuracy
-            sum_frame, sum_frame1, sum_frame2, trades_coverage = self._compile_summary_frames(
-                actual, yhat, actual_training, training_predictions,
-                actual_eval, eval_predictions, best_model, fd_index, R, RMSE, MAPE,
+            # Summaries for tables and directional accuracy
+            gradient_results, model_summary, val_results, val_coverage = self._compile_summary_frames(
+                train_actual, train_pred,
+                val_actual, val_pred,
+                test_actual, test_pred,
+                best_model, fd_index,
                 best_confidence_level
             )
 
-            dta_total = float(sum_frame1.loc['Directional accuracy score'].iloc[0])
-            unique_name = sum_frame1.loc['Name'].iloc[0]
+            # Extract key metrics from model_summary
+            dta_total = float(model_summary.loc['Directional accuracy score'].iloc[0])
+            unique_name = model_summary.loc['Name'].iloc[0]
 
-            # Store collected data
+            # Store the collected data in a dictionary
             collected_data = {
                 'history': history,
-                'predicted_test_x': validation_predictions,
+                'predicted_test_x': val_pred,  # or rename as needed
                 'mod': mod,
-                'yhat': yhat,
-                'actual': actual,
-                'RMSE': RMSE,
-                'MAPE': MAPE,
-                'R': R,
-                'sum_frame': sum_frame,
-                'sum_frame1': sum_frame1,
-                'sum_frame2': sum_frame2,
+                'gradient_results': gradient_results,
+                'model_summary': model_summary,
+                'val_results': val_results,
+                'val_coverage': val_coverage,
                 'dta_total': dta_total,
                 'unique_name': unique_name,
                 'epo_div_x': int(self.epo / x),
-                'trades_coverage': trades_coverage,
-                'confidence tail': best_confidence_level
+                'confidence_tail': best_confidence_level
             }
+
             epochs_test_collector[x] = collected_data.copy()
 
         return epochs_test_collector
 
-    def _denormalize_and_select_confidence(self, df, training_predictions, validation_predictions, eval_predictions):
+    def _denormalize_and_select_confidence(self, train_predictions, val_predictions, test_predictions):
         """
-        Denormalize predictions and select the best confidence level for directional orientation if applicable.
-        Returns yhat, actual, actual_training, actual_eval, best_confidence_level
+        Denormalize predictions for training, validation, and test sets, and select the best confidence level
+        for directional orientation if applicable.
+
+        Args:
+            train_predictions (ndarray): Normalized predictions for the training set.
+            val_predictions (ndarray): Normalized predictions for the validation set.
+            test_predictions (ndarray): Normalized predictions for the test/evaluation set.
+
+        Returns:
+            train_pred (ndarray): Denormalized training predictions.
+            val_pred (ndarray): Denormalized validation predictions.
+            test_pred (ndarray): Denormalized test (evaluation) predictions.
+            train_actual (ndarray): Denormalized actual training set values.
+            val_actual (ndarray): Denormalized actual validation set values.
+            test_actual (ndarray): Denormalized actual test (evaluation) set values.
+            best_confidence_level (float): Best confidence tail level (if directional_orientation=True), otherwise 0.5.
         """
-        actual_training = _data_denormalisation(
+        # Denormalize actual values
+        train_actual = _data_denormalisation(
             self.trainY, self.data_table[['Close']], int(self.future[0]),
             self.trainY, is_targeted=self.directional_orientation
         ).reshape(-1, 1)
 
-        actual = _data_denormalisation(
+        val_actual = _data_denormalisation(
             self.testY, self.data_table[['Close']], int(self.future[0]),
             self.testY, is_targeted=self.directional_orientation
         ).reshape(-1, 1)
 
-        actual_eval = _data_denormalisation(
+        test_actual = _data_denormalisation(
             self.evalY, self.data_table[['Close']], int(self.future[0]),
             self.testY, is_targeted=self.directional_orientation
         ).reshape(-1, 1)
 
+        # If directional orientation is True, try different confidence levels and choose the best one
         if self.directional_orientation:
-            # Try different confidence levels and choose the best one
             confidence_levels = confidence_tails()
             confidence_test_collector = {}
+
             for tail in confidence_levels:
-                training_pred = _data_denormalisation(
-                    training_predictions, self.data_table[['Close']], int(self.future[0]),
+                # Denormalize for each confidence tail
+                train_pred = _data_denormalisation(
+                    train_predictions, self.data_table[['Close']], int(self.future[0]),
                     self.trainY, is_targeted=self.directional_orientation, confidence_lvl=tail
                 ).reshape(-1, 1)
 
-                eval_pred = _data_denormalisation(
-                    eval_predictions, self.data_table[['Close']], int(self.future[0]),
+                test_pred = _data_denormalisation(
+                    test_predictions, self.data_table[['Close']], int(self.future[0]),
                     self.testY, is_targeted=self.directional_orientation, confidence_lvl=tail
                 ).reshape(-1, 1)
 
-                yhat = _data_denormalisation(
-                    validation_predictions, self.data_table[['Close']], int(self.future[0]),
+                val_pred = _data_denormalisation(
+                    val_predictions, self.data_table[['Close']], int(self.future[0]),
                     self.testY, is_targeted=self.directional_orientation, confidence_lvl=tail
                 ).reshape(-1, 1)
 
+                # Evaluate directional accuracy for the validation set
                 summary_table, trades_cov = _directional_accuracy(
-                    actual, yhat, {'future_days': self.future[0]},
+                    val_actual, val_pred, {'future_days': self.future[0]},
                     is_targeted=self.directional_orientation
                 )
                 dta_score = directional_accuracy_score(summary_table, trades_cov)
-                confidence_test_collector[str(tail)] = (dta_score, tail, yhat, training_pred, eval_pred)
 
-            # Choose the best confidence level
+                # Store results keyed by confidence tail
+                confidence_test_collector[str(tail)] = (dta_score, tail, train_pred, val_pred, test_pred)
+
+            # Pick the best confidence tail based on directional accuracy score
             best_confidence_level, results = max(confidence_test_collector.items(), key=lambda item: item[1][0])
-            yhat = results[2]
-            # Override predictions with the best found scenario
-            training_predictions_denorm = results[3]
-            eval_predictions_denorm = results[4]
+            best_confidence_level = results[1]
+            train_pred = results[2]
+            val_pred = results[3]
+            test_pred = results[4]
 
-            return yhat, actual, actual_training, actual_eval, best_confidence_level
         else:
-            yhat = _data_denormalisation(
-                validation_predictions, self.data_table[['Close']], int(self.future[0]),
+            # If no directional orientation, just denormalize all sets (confidence tail is meaningless)
+            best_confidence_level = 0.5
+
+            train_pred = _data_denormalisation(
+                train_predictions, self.data_table[['Close']], int(self.future[0]),
+                self.trainY, is_targeted=self.directional_orientation
+            ).reshape(-1, 1)
+
+            val_pred = _data_denormalisation(
+                val_predictions, self.data_table[['Close']], int(self.future[0]),
                 self.testY, is_targeted=self.directional_orientation
             ).reshape(-1, 1)
-            return yhat, actual, actual_training, actual_eval, 0.5
+
+            test_pred = _data_denormalisation(
+                test_predictions, self.data_table[['Close']], int(self.future[0]),
+                self.testY, is_targeted=self.directional_orientation
+            ).reshape(-1, 1)
+
+        return train_pred, val_pred, test_pred, train_actual, val_actual, test_actual, best_confidence_level
 
     def _get_best_model_params(self):
         """
@@ -389,102 +416,130 @@ class InitiateResearch:
             best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
         return best_model
 
-    def _compile_summary_frames(self, actual, yhat, actual_training, training_pred,
-                                actual_eval, eval_pred, best_model, fd_index, R, RMSE, MAPE,
-                                best_confidence_level):
+    def _compile_summary_frames(
+            self,
+            train_actual, train_pred,
+            val_actual, val_pred,
+            test_actual, test_pred,
+            best_model, fd_index,
+            best_confidence_level
+    ):
         """
-        Compile summary DataFrames that show metrics, directional accuracy, and coverage.
-        Also updates sum_frame1 with directional accuracy scores.
+        Compile summary DataFrames for directional accuracy, gradient accuracy, and coverage
+        for training, validation, and test sets. Also populates a final summary table with
+        key metrics, including directional accuracy and confidence level.
+
+        Args:
+            train_actual (ndarray): Denormalized actual values for the training set.
+            train_pred (ndarray): Denormalized predictions for the training set.
+            val_actual (ndarray): Denormalized actual values for the validation set.
+            val_pred (ndarray): Denormalized predictions for the validation set.
+            test_actual (ndarray): Denormalized actual values for the test set.
+            test_pred (ndarray): Denormalized predictions for the test set.
+            best_model (pd.Series or DataFrame row): Best model parameters.
+            fd_index (list or Index): Time index for storing gradient accuracy outputs.
+            best_confidence_level (float): Best confidence tail level (if directional_orientation=True); else 0.5.
+
+        Returns:
+            gradient_results (pd.DataFrame): DataFrame containing gradient accuracy metrics (Std, LPM0, LPM1, LPM2).
+            model_summary (pd.DataFrame): DataFrame summarizing the best model, directional accuracies, confidence level.
+            val_results (pd.DataFrame): DataFrame containing directional accuracy details for the validation set.
+            val_coverage (pd.DataFrame): DataFrame containing coverage info for the validation set.
         """
-        sf = pd.Series({
-            'Root mean squared error': RMSE,
-            'Mean absolute percentage error': MAPE,
-            "Linear correlation": R,
-            'Confidence tail': best_confidence_level
-        })
 
-        # Directional accuracy tests
-        sum_frame3, training_trades_coverage = _directional_accuracy(
-            actual_training, training_pred, best_model, is_targeted=self.directional_orientation
+        # 1. Directional Accuracy Tests
+        # Training set
+        train_results, train_coverage = _directional_accuracy(
+            train_actual, train_pred, best_model, is_targeted=self.directional_orientation
         )
-        sum_frame3.index = fd_index
+        train_results.index = fd_index
 
-        sum_frame4, eval_trades_coverage = _directional_accuracy(
-            actual_eval, eval_pred, best_model, is_targeted=self.directional_orientation
+        # Validation set
+        val_results, val_coverage = _directional_accuracy(
+            val_actual, val_pred, best_model, is_targeted=self.directional_orientation
         )
-        sum_frame4.index = fd_index
+        val_results.index = fd_index
 
-        sum_frame2, trades_coverage = _directional_accuracy(
-            actual, yhat, best_model, is_targeted=self.directional_orientation
+        # Test set
+        test_results, test_coverage = _directional_accuracy(
+            test_actual, test_pred, best_model, is_targeted=self.directional_orientation
         )
-        sum_frame2.index = fd_index
+        test_results.index = fd_index
 
-        dta_test = directional_accuracy_score(sum_frame4, eval_trades_coverage)
-        dta_validation = directional_accuracy_score(sum_frame2, trades_coverage)
-        dta_training = directional_accuracy_score(sum_frame3, training_trades_coverage)
-        dta_std = np.std([dta_training, dta_validation, dta_test])
-        dta_total = (dta_training + dta_validation + dta_test) / 3 - dta_std
+        # 2. Directional Accuracy Scores
+        da_training = directional_accuracy_score(train_results, train_coverage)
+        da_validation = directional_accuracy_score(val_results, val_coverage)
+        da_test = directional_accuracy_score(test_results, test_coverage)
 
-        # Gradient accuracy test
-        std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(yhat, actual, best_model)
-        sum_frame = pd.DataFrame({'Std': std, 'LPM 0': lpm0, 'LPM 1': lpm1, 'LPM 2': lpm2})
-        sum_frame.index = fd_index
+        da_std = np.std([da_training, da_validation, da_test])
+        da_total = (da_training + da_validation + da_test) / 3 - da_std
 
-        # Add model parameters and metrics
+        # 3. Gradient Accuracy Test on validation set (commonly used set for these metrics)
+        std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(val_pred, val_actual, best_model)
+        gradient_results = pd.DataFrame({'Std': std, 'LPM 0': lpm0, 'LPM 1': lpm1, 'LPM 2': lpm2})
+        gradient_results.index = fd_index
+
+        # 4. Model Parameters
         if self.custom_layers:
             best_model_params = pd.Series(self.research_results)
         else:
             best_model_params = best_model
 
-        sum_frame1 = pd.concat([best_model_params, sf]).to_frame()
+        # Convert best_model_params to DataFrame
+        model_summary = pd.concat([best_model_params]).to_frame()
 
-        # Timeframes for training/validation/testing
+        # 5. Timeframes for training/validation/test sets
         train_start = self.list_of_index[0][-len(self.trainY):][0].date().strftime("%d/%m/%y")
         train_end = self.list_of_index[0][-len(self.trainY):][-1].date().strftime("%d/%m/%y")
-        validation_start = self.list_of_index[1][-len(self.testY):][0].date().strftime("%d/%m/%y")
-        validation_end = self.list_of_index[1][-len(self.testY):][-1].date().strftime("%d/%m/%y")
+
+        val_start = self.list_of_index[1][-len(self.testY):][0].date().strftime("%d/%m/%y")
+        val_end = self.list_of_index[1][-len(self.testY):][-1].date().strftime("%d/%m/%y")
+
         test_start = self.list_of_index[2][-len(self.evalY):][0].date().strftime("%d/%m/%y")
         test_end = self.list_of_index[2][-len(self.evalY):][-1].date().strftime("%d/%m/%y")
 
         unique_name = name_generator()
 
-        # Populate sum_frame1 with DA details
-        sum_frame1.loc[f'DA training ({train_start} - {train_end})'] = str(round(dta_training, 3))
-        sum_frame1.loc[f'DA validation ({validation_start} - {validation_end})'] = str(round(dta_validation, 3))
-        sum_frame1.loc[f'DA test ({test_start} - {test_end})'] = str(round(dta_test, 3))
-        sum_frame1.loc['DA std'] = str(round(dta_std, 3))
-        sum_frame1.loc['Directional accuracy score'] = str(round(dta_total, 3))
-        sum_frame1.loc['Name'] = unique_name
-        sum_frame1.loc['Means applies'] = self.use_means
-        sum_frame1.loc['Selected regressors'] = str(self.columns_names.to_list())
+        # 6. Populate model_summary with directional accuracy details
+        model_summary.loc[f'DA training ({train_start} - {train_end})'] = str(round(da_training, 3))
+        model_summary.loc[f'DA validation ({val_start} - {val_end})'] = str(round(da_validation, 3))
+        model_summary.loc[f'DA test ({test_start} - {test_end})'] = str(round(da_test, 3))
+        model_summary.loc['DA std'] = str(round(da_std, 3))
+        model_summary.loc['Directional accuracy score'] = str(round(da_total, 3))
+        model_summary.loc['Confidence level'] = str(best_confidence_level)
+        model_summary.loc['Name'] = unique_name
+        model_summary.loc['Means applies'] = self.use_means
+        model_summary.loc['Selected regressors'] = str(self.columns_names.to_list())
 
-        return sum_frame, sum_frame1, sum_frame2, trades_coverage
+        # 7. Return relevant DataFrames
+        return gradient_results, model_summary, val_results, val_coverage
 
     def _choose_best_result(self, epochs_test_collector):
         """
         From collected epoch tests, choose the best result based on the highest directional accuracy.
         Update class attributes with the chosen best result.
         """
-        best_test = max(epochs_test_collector, key=lambda x: epochs_test_collector[x]['dta_total'])
-        best_result = epochs_test_collector[best_test]
+        # Pick the key with the highest directional accuracy score
+        best_test_key = max(epochs_test_collector, key=lambda x: epochs_test_collector[x]['dta_total'])
+        best_result = epochs_test_collector[best_test_key]
 
+        # Update class attributes with the chosen best result
         self.history = best_result['history']
-        self.predicted_test_x = best_result['predicted_test_x']
+        self.predicted_val = best_result['predicted_test_x']  # Denormalized validation predictions
         self.mod = best_result['mod']
-        self.yhat = best_result['yhat']
-        self.actual = best_result['actual']
-        self.RMSE = best_result['RMSE']
-        self.MAPE = best_result['MAPE']
-        self.R = best_result['R']
-        self.sum_frame = best_result['sum_frame']
-        self.sum_frame1 = best_result['sum_frame1']
-        self.sum_frame2 = best_result['sum_frame2']
+        self.gradient_results = best_result['gradient_results']  # Previously sum_frame
+        self.model_summary = best_result['model_summary']  # Previously sum_frame1
+        self.val_results = best_result['val_results']  # Previously sum_frame2
+        self.val_coverage = best_result.get('val_coverage', None)
         self.mean_directional_accuracy = best_result['dta_total']
         self.unique_name = best_result['unique_name']
-        self.general_model_table = best_result['sum_frame1']
         self.epo = best_result['epo_div_x']
-        self.trades_coverage = best_result['trades_coverage']
-        self.confidence_tail = best_result['confidence tail']
+        self.confidence_tail = best_result['confidence_tail']
+
+        # If you still want to store model_summary in a "general_model_table" attribute
+        self.general_model_table = self.model_summary
+
+        # Additional shared class-level metadata
         self.loss_function = LOSS_FUNCTION
         self.cross_validation_chunks = CROSS_VALIDATION_CHUNKS
         self.metrics = METRICS
