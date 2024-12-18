@@ -115,7 +115,7 @@ class InitiateResearch:
             # Send a message about starting second phase
             _send_discord_message(f'2nd phase for {self.asset} {self.type} has been started')
 
-            # Evaluate the model with different epoch divisions if needed
+            # Evaluate the model with different epoch divisions (second phase)
             epochs_test_collector = self._evaluate_model_with_varied_epochs(df)
 
             # Select the best result based on directional accuracy
@@ -132,7 +132,7 @@ class InitiateResearch:
             self._save_model_and_results()
 
             # Save a backup model if performance criteria are met
-            self._conditional_save_in_model_vault()
+            # self._conditional_save_in_model_vault()
 
             # Store variables for this loop
             storage[self.unique_name] = vars(self).copy()
@@ -277,7 +277,7 @@ class InitiateResearch:
             std, lpm0, lpm1, lpm2, fd_index = _gradient_accuracy_test(val_pred, val_actual, best_model)
 
             # Summaries for tables and directional accuracy
-            gradient_results, model_summary, val_results, val_coverage = self._compile_summary_frames(
+            gradient_results, model_summary, train_results, train_coverage, val_results, val_coverage, test_results, test_coverage = self._compile_summary_frames(
                 train_actual, train_pred,
                 val_actual, val_pred,
                 test_actual, test_pred,
@@ -292,10 +292,14 @@ class InitiateResearch:
             # Store the collected data in a dictionary
             collected_data = {
                 'history': history,
-                'predicted_test_x': val_pred,  # or rename as needed
+                'yhat': validation_predictions,
                 'mod': mod,
                 'gradient_results': gradient_results,
                 'model_summary': model_summary,
+                'train_results': train_results,
+                'test_results': test_results,
+                'train_coverage': train_coverage,
+                'test_coverage': test_coverage,
                 'val_results': val_results,
                 'val_coverage': val_coverage,
                 'dta_total': dta_total,
@@ -512,7 +516,7 @@ class InitiateResearch:
         model_summary.loc['Selected regressors'] = str(self.columns_names.to_list())
 
         # 7. Return relevant DataFrames
-        return gradient_results, model_summary, val_results, val_coverage
+        return gradient_results, model_summary, train_results, train_coverage, val_results, val_coverage, test_results, test_coverage
 
     def _choose_best_result(self, epochs_test_collector):
         """
@@ -525,12 +529,16 @@ class InitiateResearch:
 
         # Update class attributes with the chosen best result
         self.history = best_result['history']
-        self.predicted_val = best_result['predicted_test_x']  # Denormalized validation predictions
+        self.predicted_val = best_result['yhat']  # Non normalised validation predictions
         self.mod = best_result['mod']
-        self.gradient_results = best_result['gradient_results']  # Previously sum_frame
-        self.model_summary = best_result['model_summary']  # Previously sum_frame1
-        self.val_results = best_result['val_results']  # Previously sum_frame2
+        self.gradient_results = best_result['gradient_results']
+        self.model_summary = best_result['model_summary']
+        self.val_results = best_result['val_results']
         self.val_coverage = best_result.get('val_coverage', None)
+        self.train_results = best_result['train_results']
+        self.train_coverage = best_result.get('train_coverage', None)
+        self.test_results = best_result['test_results']
+        self.test_coverage = best_result.get('test_coverage', None)
         self.mean_directional_accuracy = best_result['dta_total']
         self.unique_name = best_result['unique_name']
         self.epo = best_result['epo_div_x']
@@ -549,10 +557,10 @@ class InitiateResearch:
         Visualize prediction results depending on whether the orientation is directional or not.
         """
         if not self.directional_orientation:
-            _visualize_prediction_results_daily(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
-            _visualize_prediction_results(pd.DataFrame(self.predicted_test_x), pd.DataFrame(self.testY))
+            _visualize_prediction_results_daily(pd.DataFrame(self.predicted_val), pd.DataFrame(self.testY))
+            _visualize_prediction_results(pd.DataFrame(self.predicted_val), pd.DataFrame(self.testY))
         else:
-            _visualize_probability_distribution(pd.DataFrame(self.predicted_test_x))
+            _visualize_probability_distribution(pd.DataFrame(self.predicted_val))
 
     def _save_model_and_results(self):
         """
@@ -565,25 +573,28 @@ class InitiateResearch:
             self.unique_name, self.mod, is_targeted=self.directional_orientation
         )
 
-        _dataframe_to_png(self.sum_frame1, " ")
+        _dataframe_to_png(self.general_model_table, " ")
 
         if self.directional_orientation:
             # Save combined dataframes if directional orientation is used
             # sum_frame2 & trades_coverage & training/eval coverage frames assumed from previous steps
             dataframes = [
-                self.sum_frame2, self.trades_coverage,  # Validation results and coverage
-                # training results/coverage (sum_frame3/training_trades_coverage) should be defined in context
-                # eval results/coverage (sum_frame4/eval_trades_coverage) as well
-                # For clarity, they should be passed or stored as attributes when compiled
+                self.train_results, self.train_coverage,
+                self.val_results, self.val_coverage,
+                self.test_results, self.test_coverage
             ]
             table_names = [
-                "Validate results",
-                "Validate coverage"
-                # Add names for training/test if they are needed and available
+                "Training results",
+                "Training coverage",
+                "Validation results",
+                "Validation coverage",
+                "Test results",
+                "Test coverage"
+
             ]
             _dataframes_to_single_png(dataframes, table_names, "combined_tables")
         else:
-            _dataframe_to_png(self.sum_frame2, "table_dir_vector")
+            _dataframe_to_png(self.val_results, "table_dir_vector")
 
         # Save general model table
         self.general_model_table.to_csv(self.raw_model_path[:-7] + "general_model_table.csv",
@@ -606,33 +617,12 @@ class InitiateResearch:
             with open(filename, 'wb') as f:
                 copy_dict = obj.__dict__.copy()
                 copy_dict.pop('mod', None)
+                copy_dict.pop('custom_layer_ui', None)
                 copy_dict.pop('history', None)
                 pickle.dump(copy_dict, f)
 
         filename = os.path.join(new_abs_path, 'lstm_research_dict.pickle')
         save(self, filename)
-
-    def _conditional_save_in_model_vault(self):
-        """
-        Conditionally save model in a model vault if performance criteria are met
-        and the run is not in testing mode.
-        """
-
-        def save_model_in_model_vault():
-            old_abs_path = self.raw_model_path[:-7]
-            new_abs_path = (
-                    self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() +
-                    'model_vault' + _slash_conversion() + 'LSTM_research_models' + _slash_conversion() +
-                    self.raw_model_path.split('\\')[-2] + _slash_conversion()
-            )
-            copy_tree(old_abs_path, new_abs_path)
-            _send_discord_message(self.unique_name + ' has been saved in models vault')
-            print(self.unique_name + ' has been saved in models vault')
-
-        # Criteria for saving to model vault
-        if (self.R > 0.9 and self.MAPE < 5 and self.RMSE < 10 and
-                self.mean_directional_accuracy > 0.51 and not self.testing):
-            save_model_in_model_vault()
 
     def _get_best_from_storage(self, storage):
         """
