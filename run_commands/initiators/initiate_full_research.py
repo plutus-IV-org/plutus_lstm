@@ -131,9 +131,6 @@ class InitiateResearch:
             # Save the raw model and results
             self._save_model_and_results()
 
-            # Save a backup model if performance criteria are met
-            # self._conditional_save_in_model_vault()
-
             # Store variables for this loop
             storage[self.unique_name] = vars(self).copy()
 
@@ -529,7 +526,7 @@ class InitiateResearch:
 
         # Update class attributes with the chosen best result
         self.history = best_result['history']
-        self.predicted_val = best_result['yhat']  # Non normalised validation predictions
+        self.yhat = best_result['yhat']  # Non normalised validation predictions
         self.mod = best_result['mod']
         self.gradient_results = best_result['gradient_results']
         self.model_summary = best_result['model_summary']
@@ -557,10 +554,10 @@ class InitiateResearch:
         Visualize prediction results depending on whether the orientation is directional or not.
         """
         if not self.directional_orientation:
-            _visualize_prediction_results_daily(pd.DataFrame(self.predicted_val), pd.DataFrame(self.testY))
-            _visualize_prediction_results(pd.DataFrame(self.predicted_val), pd.DataFrame(self.testY))
+            _visualize_prediction_results_daily(pd.DataFrame(self.yhat), pd.DataFrame(self.testY))
+            _visualize_prediction_results(pd.DataFrame(self.yhat), pd.DataFrame(self.testY))
         else:
-            _visualize_probability_distribution(pd.DataFrame(self.predicted_val))
+            _visualize_probability_distribution(pd.DataFrame(self.yhat))
 
     def _save_model_and_results(self):
         """

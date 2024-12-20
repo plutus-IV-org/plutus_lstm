@@ -21,7 +21,7 @@ pd.options.mode.chained_assignment = None
 def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: bool = False):
     # Enable eager execution
     # tf.config.run_functions_eagerly(True)
-    if testing:
+    if TESTING:
         from utilities.hyperparameters_test import _hyperparameters_one_layer, \
             _hyperparameters_two_layers, _hyperparameters_three_layers
     else:
@@ -29,6 +29,10 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             _hyperparameters_two_layers, _hyperparameters_three_layers
 
     results_table = pd.DataFrame()
+
+    # In case of cross validation we need to extract full train X and Y
+    if isinstance(trainX, list):
+        trainX, trainY = trainX[-1], trainY[-1]
 
     # @tf.function
     def inverse_mda(y_true, y_pred):
@@ -102,7 +106,7 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
                                 verbose=1,
                                 validation_data=(testX, testY),  # it should be a tuple not a list
                                 callbacks=[talos.utils.early_stopper(epochs=params["epochs"],
-                                                                     monitor="val_accuracy",
+                                                                     monitor=LOSS_FUNCTION,
                                                                      patience=15,
                                                                      min_delta=0.01)])
             return history, model
@@ -168,7 +172,7 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
                                 verbose=1,
                                 validation_data=[testX, testY],
                                 callbacks=[talos.utils.early_stopper(epochs=params["epochs"],
-                                                                     monitor="val_accuracy",
+                                                                     monitor=LOSS_FUNCTION,
                                                                      patience=15,
                                                                      min_delta=0.01)])
 
@@ -242,7 +246,7 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
                                 verbose=1,
                                 validation_data=[testX, testY],
                                 callbacks=[talos.utils.early_stopper(epochs=params["epochs"],
-                                                                     monitor="val_accuracy",
+                                                                     monitor=LOSS_FUNCTION,
                                                                      patience=15,
                                                                      min_delta=0.01)])
 
@@ -286,9 +290,11 @@ def _run_training(trainX, trainY, asset, type, p_d, f_d, testing, is_targeted: b
             os.remove(file_path)
     os.rmdir(cwd_fold)
 
+    metric = LOSS_FUNCTION
+    val_metric = 'val_' + LOSS_FUNCTION
     # Reorder columns of final table
     results_table = results_table[
-        ['round_epochs', 'past_days', 'future_days', 'loss', 'accuracy', 'val_loss', 'val_accuracy', 'lr',
+        ['round_epochs', 'past_days', 'future_days', 'loss', metric, 'val_loss', val_metric, 'lr',
          'epochs', 'batch_size', 'dropout', 'first_lstm_layer', 'second_lstm_layer', 'third_lstm_layer',
          'optimizer', 'loss.1', 'activation', 'weight_regulizer']]
 

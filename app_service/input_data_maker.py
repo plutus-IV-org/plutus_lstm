@@ -1,5 +1,6 @@
 import pandas as pd
 import datetime as dt
+import numpy as np
 from data_service.data_recreator import data_preparation
 from utilities.cluster_common_line import compute_averages
 
@@ -14,7 +15,6 @@ def generate_data(cluster):
         keys = []
         for x in prepared_data.keys():
             keys.append(x)
-
 
         t1 = dt.datetime.now()
         keys, prepared_data = compute_averages(keys, prepared_data)
@@ -33,7 +33,7 @@ def generate_data(cluster):
             asset_prediction_dic[x] = asset_prediction
             asset_price_dic[asset_name + "_" + interval] = asset_price
         t2 = dt.datetime.now()
-        print(f'Computing averages...{t2-t1}')
+        print(f'Computing averages...{t2 - t1}')
         return asset_prediction_dic, asset_price_dic, asset_names, interval
 
     else:
@@ -42,8 +42,13 @@ def generate_data(cluster):
         full_name = asset_dict['raw_model_path'].split('\\')[-2]
         interval = asset_dict['interval']
 
-        predicted_price = asset_dict['yhat'].reshape(int(len(asset_dict['yhat']) / asset_dict['future'][0]),
-                                                     asset_dict['future'][0])
+        if isinstance(asset_dict['yhat'], list):
+            predicted_price = np.array(asset_dict['yhat']).reshape(
+                int(len(asset_dict['yhat']) / asset_dict['future'][0]),
+                asset_dict['future'][0])
+        else:
+            predicted_price = asset_dict['yhat'].reshape(int(len(asset_dict['yhat']) / asset_dict['future'][0]),
+                                                         asset_dict['future'][0])
         actual_price = asset_dict['data_table'].tail(len(predicted_price))
         time_index = actual_price.index
 
@@ -65,6 +70,6 @@ def generate_data(cluster):
             predicted_price_df = final_frame.loc[predicted_price_df.index].values + (predicted_price_df * sd)
         # need to add n future days in order to recreate 126xN actual and predicted tables
         asset_prediction_dic = {full_name: predicted_price_df.tail(126)}
-        asset_price_dic = {short_name+'_'+interval: actual_price[['Close']].tail(126 + future_days)}
-        asset_names = [short_name+'_'+interval]
+        asset_price_dic = {short_name + '_' + interval: actual_price[['Close']].tail(126 + future_days)}
+        asset_names = [short_name + '_' + interval]
         return asset_prediction_dic, asset_price_dic, asset_names, interval
