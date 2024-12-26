@@ -144,7 +144,7 @@ class InitiateResearch:
     def _send_init_messages(self):
         """Send initial messages to Discord to indicate start of training."""
         header_msg = 'TESTING' if self.testing else ''
-        start_underline = 'TESTING\\_' if self.testing else '\\_'
+        start_underline = '\\_'
 
         _send_discord_message(start_underline * 32)
         _send_discord_message(f'{header_msg} - {username} starts model training')
@@ -289,7 +289,8 @@ class InitiateResearch:
             # Store the collected data in a dictionary
             collected_data = {
                 'history': history,
-                'yhat': validation_predictions,
+                'yhat': val_pred,
+                'raw_yhat': validation_predictions,  # Non normalised predictions required for distribution graph
                 'mod': mod,
                 'gradient_results': gradient_results,
                 'model_summary': model_summary,
@@ -414,7 +415,7 @@ class InitiateResearch:
             best_model.loc['future_days'] = self.future[0]
             best_model.loc['past_days'] = self.past[0]
         else:
-            best_model = self.research_results.iloc[self.research_results['accuracy'].argmax(), :]
+            best_model = self.research_results.iloc[self.research_results[self.research_results.columns[4]].argmax(), :]
         return best_model
 
     def _compile_summary_frames(
@@ -454,18 +455,21 @@ class InitiateResearch:
             train_actual, train_pred, best_model, is_targeted=self.directional_orientation
         )
         train_results.index = fd_index
+        train_coverage.index = fd_index
 
         # Validation set
         val_results, val_coverage = _directional_accuracy(
             val_actual, val_pred, best_model, is_targeted=self.directional_orientation
         )
         val_results.index = fd_index
+        val_coverage.index = fd_index
 
         # Test set
         test_results, test_coverage = _directional_accuracy(
             test_actual, test_pred, best_model, is_targeted=self.directional_orientation
         )
         test_results.index = fd_index
+        test_coverage.index = fd_index
 
         # 2. Directional Accuracy Scores
         da_training = directional_accuracy_score(train_results, train_coverage)
@@ -511,7 +515,7 @@ class InitiateResearch:
         model_summary.loc['Name'] = unique_name
         model_summary.loc['Means applies'] = self.use_means
         model_summary.loc['Selected regressors'] = str(self.columns_names.to_list())
-
+        model_summary.columns = ['Values']
         # 7. Return relevant DataFrames
         return gradient_results, model_summary, train_results, train_coverage, val_results, val_coverage, test_results, test_coverage
 
@@ -527,9 +531,10 @@ class InitiateResearch:
         # Update class attributes with the chosen best result
         self.history = best_result['history']
         self.yhat = best_result['yhat']  # Non normalised validation predictions
+        self.raw_yhat = best_result['raw_yhat']
         self.mod = best_result['mod']
         self.gradient_results = best_result['gradient_results']
-        self.model_summary = best_result['model_summary']
+        self.general_model_table = best_result['model_summary']
         self.val_results = best_result['val_results']
         self.val_coverage = best_result.get('val_coverage', None)
         self.train_results = best_result['train_results']
@@ -540,9 +545,6 @@ class InitiateResearch:
         self.unique_name = best_result['unique_name']
         self.epo = best_result['epo_div_x']
         self.confidence_tail = best_result['confidence_tail']
-
-        # If you still want to store model_summary in a "general_model_table" attribute
-        self.general_model_table = self.model_summary
 
         # Additional shared class-level metadata
         self.loss_function = LOSS_FUNCTION
@@ -557,7 +559,7 @@ class InitiateResearch:
             _visualize_prediction_results_daily(pd.DataFrame(self.yhat), pd.DataFrame(self.testY))
             _visualize_prediction_results(pd.DataFrame(self.yhat), pd.DataFrame(self.testY))
         else:
-            _visualize_probability_distribution(pd.DataFrame(self.yhat))
+            _visualize_probability_distribution(pd.DataFrame(self.raw_yhat))
 
     def _save_model_and_results(self):
         """

@@ -81,7 +81,7 @@ def _perfect_model(testing, asset, df_normalised, table, trainX_list, trainY_lis
     """
 
     try:
-        best_model = table.iloc[table['accuracy'].argmax(), :]
+        best_model = table.iloc[table[table.columns[4]].argmax(), :]
     except Exception:
         best_model = table
 

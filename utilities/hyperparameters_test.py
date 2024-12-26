@@ -8,6 +8,7 @@ def _hyperparameters_one_layer():
         'first_lstm_layer' :[32],
         'batch_size': [32],
         'epochs': [10],
+        'dropout': [0.1],
         'optimizer': [Adam],
         'loss': ["binary_crossentropy"],
         'activation': [tanh],

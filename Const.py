@@ -18,7 +18,7 @@ HOURLY_ALERT_SOUND_PATH = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notificat
 LOSS_FUNCTION = 'mse'
 METRICS = ['mse']
 CROSS_VALIDATION_CHUNKS = [0.85, 0.90, 0.95, 1]
-TESTING = True
+TESTING = False
 DIRECTIONAL_ORIENTATION = True
 USE_MEANS = False
 
