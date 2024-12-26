@@ -1,4 +1,7 @@
 import platform
+import os
+import time
+from distutils.dir_util import copy_tree
 
 
 def _slash_conversion():
@@ -41,3 +44,30 @@ def calculate_patience(lr: float) -> int:
         patience = 20
     print(f'For given learning rate {lr}, patience is {patience}')
     return patience
+
+
+def clean_and_copy_pictures(source_folder, destination_folder, max_age_seconds=86400):
+    """
+    Clean up files older than a certain age in the source folder and copy the remaining files to the destination folder.
+
+    :param source_folder: Path to the source folder.
+    :param destination_folder: Path to the destination folder.
+    :param max_age_seconds: Maximum age of files to keep (default is 1 day = 86400 seconds).
+    """
+    current_time = time.time()
+
+    # Step 1: Clean up files older than max_age_seconds
+    for filename in os.listdir(source_folder):
+        file_path = os.path.join(source_folder, filename)
+        try:
+            if os.path.isfile(file_path):
+                file_age = current_time - os.path.getmtime(file_path)
+                if file_age > max_age_seconds:  # Check if the file is older than the threshold
+                    os.unlink(file_path)  # Delete the file
+                    print(f"Deleted old file: {file_path}")
+        except Exception as e:
+            print(f"Error while deleting file {file_path}: {e}")
+
+    # Step 2: Copy remaining files to the destination folder
+    copy_tree(source_folder, destination_folder)
+    print(f"Copied files from {source_folder} to {destination_folder}")

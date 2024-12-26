@@ -8,10 +8,14 @@ Task list
 
 21.11.24
 1) DONE. Create plots for training da.
-2) Create test period  (Split data into 3 sets)
-3) Refactor initiate_full_research
+2) DONE. Create test period  (Split data into 3 sets)
+3) DONE. Refactor initiate_full_research
 
 22.11.24
-1) Combine output pictures.
+1) DONE. Combine output pictures.
+
+
+26.12.24
+1) Create a service to connect to Binance account.
 
 """

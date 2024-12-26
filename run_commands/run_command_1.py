@@ -15,7 +15,7 @@ from Const import *
 log = logging.getLogger('werkzeug')
 log.setLevel(logging.ERROR)
 
-if testing:
+if TESTING:
     df = pd.read_excel(r'inputs/init_test.xlsx')
     # df = pd.read_json(r'service_space/asset_config_test.json')
 else:
