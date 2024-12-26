@@ -12,14 +12,10 @@ from Const import LOSS_FUNCTION, CROSS_VALIDATION_CHUNKS, METRICS
 from researchers.research_phase_one import _run_training
 from researchers.research_phase_two import _perfect_model, _raw_model_saver
 from messenger_commands.messenger_commands import (
-    _send_telegram_msg,
     _dataframe_to_png,
     _send_discord_message,
-    _visualize_loss_results,
-    _visualize_accuracy_results,
     _visualize_prediction_results,
     _visualize_prediction_results_daily,
-    _visualize_mda_results,
     _visualize_probability_distribution,
     _visualize_cross_validation_accuracy_results,
     _visualize_cross_validation_loss_results,
@@ -28,16 +24,11 @@ from messenger_commands.messenger_commands import (
 from data_service.data_preparation import DataPreparation
 from data_service.data_transformation import (
     _data_normalisation,
-    _split_data,
     _distribution_type,
     _data_denormalisation,
-    log_z_score_rolling,
     cross_validation_data_split
 )
 from utilities.metrics import (
-    _rmse,
-    _mape,
-    _r,
     _gradient_accuracy_test,
     _directional_accuracy,
     directional_accuracy_score
@@ -46,7 +37,7 @@ from utilities.unique_name_generator import name_generator
 from utilities.directiona_accuracy_utililities import confidence_tails
 from utilities.use_mean_unitilities import apply_means
 from UI.custom_layers import CustomLayerUI
-from utilities.service_functions import _slash_conversion
+from utilities.service_functions import _slash_conversion, clean_and_copy_pictures
 from UI.custom_type import ListboxSelection
 
 username = os.getlogin()
@@ -602,7 +593,7 @@ class InitiateResearch:
         # Copy figures to model folder
         old_abs_path = self.root_path + _slash_conversion() + 'vaults' + _slash_conversion() + 'picture_vault'
         new_abs_path = self.raw_model_path[:-7]
-        copy_tree(old_abs_path, new_abs_path)
+        clean_and_copy_pictures(old_abs_path, new_abs_path)
 
         # Save object as a pickle
         self._save_pickle(new_abs_path)
