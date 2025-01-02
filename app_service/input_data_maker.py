@@ -6,6 +6,7 @@ from utilities.cluster_common_line import compute_averages
 
 
 def generate_data(cluster):
+    # For clusters
     if type(cluster) == str:
         asset_prediction_dic = {}
         asset_price_dic = {}

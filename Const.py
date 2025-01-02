@@ -80,6 +80,7 @@ class Favorite(Enum):
     sixth = 'Tan_Clown_fish'  # 10/01/24 1h price, rsi Tested not over-fitted model
     seventh = 'Teal_Quail'  # 21/01/23 1h 5 layers with low lr and good val loss (<loss)
 
+
 # class ModelBatches(Enum):
 #     _1d_10 = {
 #                     }
@@ -114,3 +115,7 @@ class Favorite(Enum):
 #     _1h_10 = {
 #                  }
 #     _15m_5 = {}
+
+BINANCE_API_KEY = 'W8FC25IB1oWBwG3XkbPoX1d3bR6lvlWow7rw2SxDXiGtXNFdHPMLIJKgsvYlptdg'
+BINANCE_SECRET_KEY = 'tqERk981j4MU71ZvcWWieBqBB9mDjrRkYNxQdmPaUjyWN7EFK5L1WG2MznI1ogjn'
+BINANCE_FOLDER_SCOPE = 'trading'
