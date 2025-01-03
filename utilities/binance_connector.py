@@ -1,5 +1,5 @@
 from binance.client import Client
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 
 
 class BinanceTrader:
@@ -231,7 +231,7 @@ class BinanceTrader:
         except Exception as e:
             print(f"An error occurred while canceling open orders for {symbol}: {e}")
 
-    def get_account_balance(self) -> Optional[Dict[str, float]]:
+    def get_account_balance(self) -> Optional[Tuple[float, float]]:
         """
         Retrieves the total and available balances for the futures account.
 
@@ -243,7 +243,7 @@ class BinanceTrader:
             total_balance = float(account_info['totalWalletBalance'])
             available_balance = float(account_info['availableBalance'])
             print(f"Total Balance: {total_balance}, Available Balance: {available_balance}")
-            return {'total_balance': total_balance, 'available_balance': available_balance}
+            return total_balance, available_balance
         except Exception as e:
             print(f"An error occurred while fetching account balance: {e}")
             return None
