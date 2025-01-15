@@ -1,6 +1,7 @@
 from binance.client import Client
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
+from collections import defaultdict
 
 
 class BinanceTrader:
@@ -212,7 +213,7 @@ class BinanceTrader:
             print(f"[ERROR] An error occurred while creating a market order: {e}")
             return None
 
-    def close_position(self, symbol: Optional[str] = None):
+    def close_position(self, symbol: Optional[str] = None, leverage: int = 1):
         """
         Closes open positions for a specific symbol or all positions.
 
@@ -227,7 +228,7 @@ class BinanceTrader:
                     self.create_market_order(
                         symbol=position['symbol'],
                         side='BUY' if float(position['positionAmt']) < 0 else 'SELL',
-                        quantity=abs(float(position['positionAmt']))
+                        quantity=abs(float(position['positionAmt'])), leverage=leverage
                     )
                     print(f"[INFO] Closed position for {position['symbol']}")
 
@@ -239,7 +240,7 @@ class BinanceTrader:
                     self.create_market_order(
                         symbol=position['symbol'],
                         side='BUY' if float(position['positionAmt']) < 0 else 'SELL',
-                        quantity=abs(float(position['positionAmt']))
+                        quantity=abs(float(position['positionAmt'])), leverage=leverage
                     )
                     print(f"[INFO] Closed position for {symbol}")
 
@@ -252,29 +253,34 @@ class BinanceTrader:
 
     def cancel_open_orders_for_symbol(self, symbol: str):
         """
-        Cancels all open orders for a specific symbol and prints a summary of the canceled orders.
+        Cancels all open orders for a specific symbol or all symbols if 'All' is passed as the symbol.
 
         Args:
-            symbol (str): The trading pair symbol (e.g., 'BTCUSDT').
+            symbol (str): The trading pair symbol (e.g., 'BTCUSDT') or 'All' to cancel orders for all symbols.
         """
         try:
-            open_orders = self.conn.futures_get_open_orders(symbol=symbol)
+            if symbol.lower() == 'all':
+                open_orders = self.conn.futures_get_open_orders()
+            else:
+                open_orders = self.conn.futures_get_open_orders(symbol=symbol)
 
             if open_orders:
-                print(f"\n[INFO] Canceling open orders for {symbol}:")
+                print(f"\n[INFO] Canceling open orders for {'all symbols' if symbol.lower() == 'all' else symbol}:")
                 print("=" * 40)
 
                 for order in open_orders:
-                    result = self.conn.futures_cancel_order(symbol=symbol, orderId=order['orderId'])
+                    result = self.conn.futures_cancel_order(symbol=order['symbol'], orderId=order['orderId'])
                     print(f"Order ID: {result['orderId']}, Symbol: {result['symbol']}, Status: {result['status']}")
 
                 print("=" * 40)
-                print(f"[INFO] All open orders for {symbol} have been canceled.")
+                print(
+                    f"[INFO] All open orders for {'all symbols' if symbol.lower() == 'all' else symbol} have been canceled.")
             else:
-                print(f"[INFO] No open orders to cancel for {symbol}.")
+                print(f"[INFO] No open orders to cancel for {'all symbols' if symbol.lower() == 'all' else symbol}.")
 
         except Exception as e:
-            print(f"[ERROR] An error occurred while canceling open orders for {symbol}: {e}")
+            print(
+                f"[ERROR] An error occurred while canceling open orders for {'all symbols' if symbol.lower() == 'all' else symbol}: {e}")
 
     def get_account_balance(self) -> Optional[Tuple[float, float]]:
         """
@@ -376,8 +382,8 @@ class BinanceTrader:
 
     def get_diff_between_last_two_trades(self, symbol: str) -> Optional[Dict[str, Any]]:
         """
-        Retrieves the last two trades for a given symbol and computes a naive PnL difference.
-        Returns a dictionary with trade details, PnL info, leverage used, and the symbol (ticker).
+        Retrieves the last two grouped trades for a given symbol (grouped by orderId), computes a naive PnL difference,
+        and calculates leverage for both trades.
 
         Args:
             symbol (str): The trading pair symbol (e.g., 'BTCUSDT').
@@ -389,41 +395,79 @@ class BinanceTrader:
             # 1. Fetch all trades for the given symbol
             trades = self.conn.futures_account_trades(symbol=symbol)
 
-            # Must have at least two trades to compare
-            if not trades or len(trades) < 2:
-                print(f"[INFO] Not enough trades found for symbol: {symbol} (need at least 2).")
+            # 2. Group trades by orderId
+            grouped_trades = defaultdict(lambda: {
+                'symbol': '',
+                'side': '',
+                'total_qty': 0,
+                'total_quoteQty': 0,
+                'total_commission': 0,
+                'weighted_price_sum': 0,
+                'latest_time': 0
+            })
+
+            for trade in trades:
+                orderId = trade['orderId']
+                grouped_trades[orderId]['symbol'] = trade['symbol']
+                grouped_trades[orderId]['side'] = trade['side']
+                grouped_trades[orderId]['total_qty'] += float(trade['qty'])
+                grouped_trades[orderId]['total_quoteQty'] += float(trade['quoteQty'])
+                grouped_trades[orderId]['total_commission'] += float(trade['commission'])
+                grouped_trades[orderId]['weighted_price_sum'] += float(trade['price']) * float(trade['qty'])
+                grouped_trades[orderId]['latest_time'] = max(grouped_trades[orderId]['latest_time'], trade['time'])
+
+            # 3. Calculate average price for each orderId
+            grouped_trades_list = []
+            for orderId, data in grouped_trades.items():
+                avg_price = data['weighted_price_sum'] / data['total_qty']
+                grouped_trades_list.append({
+                    'orderId': orderId,
+                    'symbol': data['symbol'],
+                    'side': data['side'],
+                    'total_qty': data['total_qty'],
+                    'total_quoteQty': data['total_quoteQty'],
+                    'total_commission': data['total_commission'],
+                    'avg_price': avg_price,
+                    'latest_time': data['latest_time']
+                })
+
+            # 4. Sort grouped trades by time so we process chronologically
+            grouped_trades_list.sort(key=lambda x: x['latest_time'])
+
+            # Must have at least two grouped trades to compare
+            if len(grouped_trades_list) < 2:
+                print(f"[INFO] Not enough grouped trades found for symbol: {symbol} (need at least 2).")
                 return None
 
-            # 2. Sort by time so we process chronologically
-            trades.sort(key=lambda x: x['time'])
-
-            # 3. Extract the last two trades
-            second_last_trade = trades[-2]
-            last_trade = trades[-1]
+            # 5. Extract the last two grouped trades
+            second_last_trade = grouped_trades_list[-2]
+            last_trade = grouped_trades_list[-1]
 
             # Parse out relevant fields
-            side_1 = second_last_trade['side']  # 'BUY' or 'SELL'
-            side_2 = last_trade['side']  # 'BUY' or 'SELL'
-            price_1 = float(second_last_trade['price'])
-            price_2 = float(last_trade['price'])
-            qty_1 = float(second_last_trade['qty'])
-            qty_2 = float(last_trade['qty'])
-            commission_1 = float(second_last_trade['commission'])
-            commission_2 = float(last_trade['commission'])
-            margin_1 = float(second_last_trade.get('margin', 0))
-            margin_2 = float(last_trade.get('margin', 0))
-            time_1 = second_last_trade['time']
-            time_2 = last_trade['time']
+            side_1 = second_last_trade['side']
+            side_2 = last_trade['side']
+            price_1 = second_last_trade['avg_price']
+            price_2 = last_trade['avg_price']
+            qty_1 = second_last_trade['total_qty']
+            qty_2 = last_trade['total_qty']
+            commission_1 = second_last_trade['total_commission']
+            commission_2 = last_trade['total_commission']
+            quote_qty_1 = second_last_trade['total_quoteQty']
+            quote_qty_2 = last_trade['total_quoteQty']
+            time_1 = second_last_trade['latest_time']
+            time_2 = last_trade['latest_time']
 
             initial_time_iso = datetime.utcfromtimestamp(time_1 / 1000).isoformat()
             final_time_iso = datetime.utcfromtimestamp(time_2 / 1000).isoformat()
 
-            # 4. Compute naive PnL (difference) and price_diff
-            commissions_total = commission_1 + commission_2
-
-            # Calculate leverage for both trades
+            # 6. Compute leverage for both trades
+            margin_1 = quote_qty_1  # Assuming quoteQty is equivalent to margin used
+            margin_2 = quote_qty_2  # Adjust if your margin calculation differs
             leverage_1 = (price_1 * qty_1) / margin_1 if margin_1 > 0 else 0
             leverage_2 = (price_2 * qty_2) / margin_2 if margin_2 > 0 else 0
+
+            # 7. Compute naive PnL (difference) and price_diff
+            commissions_total = commission_1 + commission_2
 
             # BUY → SELL scenario
             if side_1 == 'BUY' and side_2 == 'SELL':
@@ -439,7 +483,7 @@ class BinanceTrader:
                 print("[INFO] The last two trades do not match a simple open-then-close pattern.")
                 return None
 
-            # 5. Construct and return a dictionary with all the info
+            # 8. Construct and return a dictionary with all the info
             result = {
                 "ticker": symbol,
                 "direction": side_1,
@@ -467,6 +511,8 @@ class BinanceTrader:
             print(f"Price Difference:    {result['price_diff']:.2f}")
             print(f"Final Difference:    {result['total_difference']:.2f}")
             print(f"Commissions Total:   {result['commissions_total']:.2f}")
+            print(f"Leverage (Initial):  {result['leverage_1']:.2f}")
+            print(f"Leverage (Final):    {result['leverage_2']:.2f}")
             print(f"Initial Time:        {result['initial_time']}")
             print(f"Final Time:          {result['final_time']}")
             print("=" * 40)
@@ -476,4 +522,3 @@ class BinanceTrader:
         except Exception as e:
             print(f"[ERROR] An error occurred while computing the difference of last two trades: {e}")
             return None
-

@@ -17,8 +17,10 @@ def get_current_hourly_time_row(df) -> dict:
     current_hour = dt.datetime.now().replace(minute=0, second=0, microsecond=0)
     adjusted_time = current_hour - dt.timedelta(
         hours=2)  # 1st hour back because of timezone 2nd hour back due to past COMPLETED hour
-    time_for_printing = current_hour - dt.timedelta(hours=1)
-    print(f'[INFO] Selected timestamp is {time_for_printing}')
+    time_for_printing = current_hour - dt.timedelta(minutes=1)
+    print(f'[INFO] Selected data at {time_for_printing} CET')
+    print(f'[INFO] Close price is {round(df.loc[adjusted_time].iloc[0],2)}')
+    print(f'[INFO] Forecasted price is {round(df.loc[adjusted_time].iloc[1], 2)}')
     if df.loc[adjusted_time].all():
         selected_row = df.loc[adjusted_time]
         output['Asset'] = df.columns[0]
@@ -44,8 +46,8 @@ def match_price_and_predictions(predictions_dict: dict, price_dict: dict, lags: 
         concat_table = pd.concat([price_asset, prediction_asset], axis=1)
         concat_table['Diff'] = concat_table[concat_table.columns[0]] - concat_table[concat_table.columns[lags]]
         # Add 'Target' column
-        concat_table['Target'] = concat_table['Diff'].apply(lambda x: 1 if x > 0 else -1)
-        concat_table['Verbal'] = concat_table['Diff'].apply(lambda x: 'BUY' if x > 0 else 'SELL')
+        concat_table['Target'] = concat_table['Diff'].apply(lambda x: -1 if x > 0 else 1)
+        concat_table['Verbal'] = concat_table['Diff'].apply(lambda x: 'SELL' if x > 0 else 'BUY')
 
         return concat_table
 
