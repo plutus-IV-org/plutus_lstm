@@ -152,10 +152,10 @@ class BinanceTrader:
             return None
 
     def create_market_order(self, symbol: str, side: str, quantity: float, leverage: int = 1,
-                            take_profit: Optional[float] = None, stop_loss: Optional[float] = None) -> Optional[
-        Dict[str, Any]]:
+                            take_profit: Optional[float] = None, stop_loss: Optional[float] = None,
+                            readjustment: bool = False) -> Optional[Dict[str, Any]]:
         """
-        Creates a market order with optional take profit and stop loss orders.
+        Creates a market order with optional take profit and stop loss orders, or readjusts SL/TP orders.
 
         Args:
             symbol (str): The trading pair symbol (e.g., 'BTCUSDT').
@@ -164,26 +164,31 @@ class BinanceTrader:
             leverage (int): Leverage to use for the trade (default is 1).
             take_profit (Optional[float]): Price for the take profit order (optional).
             stop_loss (Optional[float]): Price for the stop loss order (optional).
+            readjustment (bool): If True, skips creating a market order and only updates SL/TP (default is False).
 
         Returns:
             Optional[Dict[str, Any]]: The response from the Binance API for the market order, or None if an error occurs.
         """
         try:
-            # Change leverage
-            self.conn.futures_change_leverage(symbol=symbol, leverage=leverage)
-            print(f"[INFO] Leverage set to {leverage}x for {symbol}")
+            if not readjustment:
+                # Change leverage
+                self.conn.futures_change_leverage(symbol=symbol, leverage=leverage)
+                print(f"[INFO] Leverage set to {leverage}x for {symbol}")
 
-            # Create the market order
-            order = self.conn.futures_create_order(
-                symbol=symbol,
-                side=side,
-                type='MARKET',
-                quantity=quantity
-            )
-            print(f"[MARKET ORDER] Created successfully - Order ID: {order['orderId']}, Symbol: {order['symbol']}, "
-                  f"Side: {order['side']}, Quantity: {order['origQty']}")
+                # Create the market order
+                order = self.conn.futures_create_order(
+                    symbol=symbol,
+                    side=side,
+                    type='MARKET',
+                    quantity=quantity
+                )
+                print(f"[MARKET ORDER] Created successfully - Order ID: {order['orderId']}, Symbol: {order['symbol']}, "
+                      f"Side: {order['side']}, Quantity: {order['origQty']}")
+            else:
+                print("[INFO] Readjustment mode enabled. Skipping market order creation.")
+                order = None
 
-            # Create the take profit order if specified
+            # Create or update the take profit order if specified
             if take_profit:
                 tp_order = self.conn.futures_create_order(
                     symbol=symbol,
@@ -195,7 +200,7 @@ class BinanceTrader:
                 print(
                     f"[TAKE PROFIT] Set successfully - Stop Price: {tp_order['stopPrice']}, Order ID: {tp_order['orderId']}")
 
-            # Create the stop loss order if specified
+            # Create or update the stop loss order if specified
             if stop_loss:
                 sl_order = self.conn.futures_create_order(
                     symbol=symbol,
@@ -210,7 +215,7 @@ class BinanceTrader:
             return order
 
         except Exception as e:
-            print(f"[ERROR] An error occurred while creating a market order: {e}")
+            print(f"[ERROR] An error occurred: {e}")
             return None
 
     def close_position(self, symbol: Optional[str] = None, leverage: int = 1):
@@ -380,14 +385,14 @@ class BinanceTrader:
             print(f"An error occurred while fetching the latest trade: {e}")
             return None
 
-    def get_diff_between_last_two_trades(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def get_diff_between_last_two_trades(self, symbol: str, leverage: int) -> Optional[Dict[str, Any]]:
         """
         Retrieves the last two grouped trades for a given symbol (grouped by orderId), computes a naive PnL difference,
         and calculates leverage for both trades.
 
         Args:
             symbol (str): The trading pair symbol (e.g., 'BTCUSDT').
-
+            leverage(int): Trading leverage.
         Returns:
             Optional[Dict[str, Any]]: A dictionary containing trade comparison details.
         """
@@ -463,8 +468,8 @@ class BinanceTrader:
             # 6. Compute leverage for both trades
             margin_1 = quote_qty_1  # Assuming quoteQty is equivalent to margin used
             margin_2 = quote_qty_2  # Adjust if your margin calculation differs
-            leverage_1 = (price_1 * qty_1) / margin_1 if margin_1 > 0 else 0
-            leverage_2 = (price_2 * qty_2) / margin_2 if margin_2 > 0 else 0
+            leverage_1 = (price_1 * qty_1 * leverage) / margin_1 if margin_1 > 0 else 0
+            leverage_2 = (price_2 * qty_2 * leverage) / margin_2 if margin_2 > 0 else 0
 
             # 7. Compute naive PnL (difference) and price_diff
             commissions_total = commission_1 + commission_2
@@ -472,12 +477,12 @@ class BinanceTrader:
             # BUY → SELL scenario
             if side_1 == 'BUY' and side_2 == 'SELL':
                 price_diff = price_2 - price_1
-                difference = (price_diff * qty_1) - commissions_total
+                difference = price_diff * qty_1
 
             # SELL → BUY scenario
             elif side_1 == 'SELL' and side_2 == 'BUY':
                 price_diff = price_1 - price_2
-                difference = (price_diff * qty_1) - commissions_total
+                difference = price_diff * qty_1
 
             else:
                 print("[INFO] The last two trades do not match a simple open-then-close pattern.")

@@ -27,6 +27,8 @@ def time_till_next_hour():
 def run_session(sl_coeff, tp_coeff, leverage, capital_percentage, testing):
     bt = BinanceTrader(BINANCE_API_KEY, BINANCE_SECRET_KEY)
     last_direction = 0
+    latest_ticker = None
+    latest_quantity = 0
 
     def close_all_positions():
         print("[INFO] Closing all positions...")
@@ -82,7 +84,15 @@ def run_session(sl_coeff, tp_coeff, leverage, capital_percentage, testing):
             time.sleep(time_till_next_hour())
             continue
 
-        current_positions = bt.check_positions()
+        # Initial request to Binance , if there is an error it will go to sleep till next round
+        try:
+            current_positions = bt.check_positions()
+        except Exception as e:
+            print(e)
+            print(f"Sleeping for {wait_time / 60:.2f} minutes until the next hour...")
+            time.sleep(time_till_next_hour())
+            continue
+
         trading_dict = get_current_hourly_time_row(df)
         if len(trading_dict) == 0:
             print('[ERROR] Trading dict is empty')
@@ -90,9 +100,16 @@ def run_session(sl_coeff, tp_coeff, leverage, capital_percentage, testing):
             time.sleep(time_till_next_hour())
             continue
 
+        sl, tp = compute_sl_and_tp(trading_dict['Current price'], trading_dict['Verbal'], sl_coeff, tp_coeff)
         if trading_dict['Target'] == last_direction:
             print('[Reaffirmation] Predicted new direction is the same as existing')
             if len(current_positions) > 0:
+                bt.cancel_open_orders_for_symbol('All')
+                bt.create_market_order(
+                    latest_ticker, trading_dict['Verbal'], latest_quantity, leverage=leverage, take_profit=tp,
+                    stop_loss=sl, readjustment=True
+                )
+
                 print(f"Sleeping for {wait_time / 60:.2f} minutes until the next hour...")
                 time.sleep(time_till_next_hour())
                 continue
@@ -113,11 +130,13 @@ def run_session(sl_coeff, tp_coeff, leverage, capital_percentage, testing):
                         'As of': trading_dict['As of']}
 
         add_future_balance_to_db(balance_dict, testing)
-        quantity = compute_quantity(trading_dict['Current price'], available_balance, capital_percentage)
+        # quantity = compute_quantity(trading_dict['Current price'], available_balance, capital_percentage)
+        quantity = calculate_quantity(trading_dict['Current price'], available_balance, leverage, capital_percentage)
         ticker = convert_ticker(trading_dict['Asset'])
-        sl, tp = compute_sl_and_tp(trading_dict['Current price'], trading_dict['Verbal'], sl_coeff, tp_coeff)
+        latest_ticker = ticker
+        latest_quantity = quantity
 
-        latest_trade_info = bt.get_diff_between_last_two_trades(ticker)
+        latest_trade_info = bt.get_diff_between_last_two_trades(ticker, leverage)
         add_previous_trade_to_db(latest_trade_info, testing)
 
         order_info = bt.create_market_order(

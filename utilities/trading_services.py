@@ -19,7 +19,7 @@ def get_current_hourly_time_row(df) -> dict:
         hours=2)  # 1st hour back because of timezone 2nd hour back due to past COMPLETED hour
     time_for_printing = current_hour - dt.timedelta(minutes=1)
     print(f'[INFO] Selected data at {time_for_printing} CET')
-    print(f'[INFO] Close price is {round(df.loc[adjusted_time].iloc[0],2)}')
+    print(f'[INFO] Close price is {round(df.loc[adjusted_time].iloc[0], 2)}')
     print(f'[INFO] Forecasted price is {round(df.loc[adjusted_time].iloc[1], 2)}')
     if df.loc[adjusted_time].all():
         selected_row = df.loc[adjusted_time]
@@ -227,6 +227,43 @@ def add_previous_trade_to_db(input: dict, testing: bool):
 def compute_quantity(price: float, funds: float, percentage: float = 1.0) -> int:
     quantity = math.floor(funds * percentage / price) - 1
     return quantity
+
+
+def calculate_quantity(price: float, funds: float, leverage: int, percentage: float = 1.0,
+                       maintenance_margin_rate: float = 0.005) -> int:
+    """
+    Calculates the maximum tradable quantity, initial margin, and maintenance margin,
+    ensuring sufficient funds for both.
+
+    Args:
+        price (float): Current price of the asset.
+        funds (float): Available funds in the account.
+        leverage (int): Leverage applied to the trade.
+        percentage (float): Percentage of funds to use (default 1.0).
+        maintenance_margin_rate (float): Minimum funds required to keep the trade
+    Returns:
+        int: Max allowed quantity
+    """
+    # Adjust funds based on the percentage to use
+    usable_funds = funds * percentage
+
+    # Calculate the maximum quantity iteratively
+    max_quantity = 0
+    while True:
+        position_value = max_quantity * price
+        initial_margin = position_value / leverage
+        maintenance_margin = position_value * maintenance_margin_rate
+        total_margin = initial_margin + maintenance_margin
+
+        if total_margin > usable_funds:
+            break
+
+        max_quantity += 1
+
+    # Subtract 1 to avoid exceeding funds
+    max_quantity = max(0, max_quantity - 1)
+
+    return max_quantity
 
 
 def convert_ticker(ticker: str) -> str:
