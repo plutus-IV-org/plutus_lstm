@@ -308,7 +308,7 @@ def crop_anomalies(df: pd.DataFrame, red_timestamps: List[pd.Timestamp],
 
 
 def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, anomalies_toggle, anomalies_window,
-                         rolling_period, zscore_lvl, is_dev: bool = False):
+                         rolling_period, zscore_lvl, is_dev: bool = False, time_range: int = 126):
     """
     Create auxiliary dataframes for analysis of asset prices and predictions.
 
@@ -423,7 +423,7 @@ def auxiliary_dataframes(model, asset_prices, asset_predictions, asset_name, ano
         print('___DIRECTIONAL_ACCURACY_WITHOUT_POST_ANOMALIES_TIMESTAMPS___')
     print(f'Directional accuracy for model {model}')
     print(directional_accuracy_score.values)
-    if not is_dev:
+    if not is_dev and time_range == 126:
         save_directional_accuracy_score(model, directional_accuracy_score)
 
     # Prepare and return data
@@ -590,13 +590,14 @@ def filter_top_ranked_models(ranked_df: pd.DataFrame, top_n: int) -> pd.DataFram
 
 def get_intervals(asset_dict: dict) -> List:
     output_list = ['All']
-    if len(asset_dict.keys())>0:
+    if len(asset_dict.keys()) > 0:
         for name in set(asset_dict.keys()):
             if 'average' in name:
                 output_list.append(name.split('_')[2])
             else:
                 output_list.append(name.split('_')[4])
     return list(set(output_list))
+
 
 if __name__ == '__main__':
     df = filter_loaded_history_score('ETH-USD_All', 'simple-average')

@@ -5,14 +5,14 @@ from data_service.data_recreator import data_preparation
 from utilities.cluster_common_line import compute_averages
 
 
-def generate_data(cluster):
+def generate_data(cluster, time_range=126):
     # For clusters
     if type(cluster) == str:
         asset_prediction_dic = {}
         asset_price_dic = {}
         asset_names = []
 
-        prepared_data, interval = data_preparation(cluster)
+        prepared_data, interval = data_preparation(cluster, time_range)
         keys = []
         for x in prepared_data.keys():
             keys.append(x)
