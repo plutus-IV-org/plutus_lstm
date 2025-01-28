@@ -332,9 +332,10 @@ class DataPreparation:
                         df_dict[key] = function()
                     else:  # For all other functions, pass 'df' as an argument
                         df_dict[key] = function(df)
-                    print(f"Function {key} executed successfully.")
+                    # print(f"Function {key} executed successfully.")
                 except Exception as e:
-                    print(f"An error occurred in function {key}: {e}")
+                    pass
+                    # print(f"An error occurred in function {key}: {e}")
 
             # If the asset is a cryptocurrency, merge additional data
             if self.asset[-4:] == '-USD':

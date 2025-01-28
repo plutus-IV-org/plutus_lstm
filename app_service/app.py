@@ -22,7 +22,6 @@ log.disabled = True
 sound_path = r"C:\Users\ilsbo\PycharmProjects\plutus_lstm\Notifications\Sound\run_command_report_generated.mp3"
 
 
-
 def find_free_port(start_port, end_port):
     for port in range(start_port, end_port):
         with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as sock:
@@ -31,7 +30,7 @@ def find_free_port(start_port, end_port):
     raise IOError('No free ports')
 
 
-def generate_app(cluster):
+def generate_app(cluster, time_range=126):
     # building components of the app
     t1 = dt.datetime.now()
     app = JupyterDash(external_stylesheets=[dbc.themes.DARKLY])
@@ -50,7 +49,7 @@ def generate_app(cluster):
         asset_names = data['asset_names']
         interval = data['interval']
     else:
-        asset_predictions, asset_prices, asset_names, interval = generate_data(cluster)
+        asset_predictions, asset_prices, asset_names, interval = generate_data(cluster, time_range)
     allowed_intervals = get_intervals(asset_predictions)
     allowed_intervals.sort()
     allowed_intervals.reverse()
@@ -308,8 +307,6 @@ def generate_app(cluster):
     app.layout = tabs
     app.title = "Plutus Forecast App!"
 
-
-
     # end
     @app.callback(
         Output('main_graph', 'figure'),
@@ -485,7 +482,7 @@ def generate_app(cluster):
         ],
         prevent_initial_call=False)
     def update_statistic_graph(asset_name, anomalies_toggle, anomalies_window, rolling_period, zscore_lvl,
-                               all_averages_toggle, interval_dropdown):
+                               all_averages_toggle, interval_dropdown ):
 
         relevant_models = []
         partially_selected_dict = select_dictionaries_by_type(asset_predictions, all_averages_toggle)
@@ -512,7 +509,7 @@ def generate_app(cluster):
         for model in relevant_models:
             deviation_data, deviation_data_diff = auxiliary_dataframes(model, asset_prices, selected_dict,
                                                                        asset_name, anomalies_toggle, anomalies_window,
-                                                                       rolling_period, zscore_lvl)
+                                                                       rolling_period, zscore_lvl, time_range=time_range)
 
             df = directional_accuracy_history_load(DA_TABLE)
             selected_df = df[df['model_name'] == model]

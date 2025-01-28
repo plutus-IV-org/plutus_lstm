@@ -33,7 +33,8 @@ def directional_loss(y_true, y_pred):
     return loss
 
 
-def data_preparation(cluster: str):
+def data_preparation(cluster: str, time_range: int = 126):
+    extended_range = time_range + 5
     sl = _slash_conversion()
     interval_lst = []
     path = _ROOT_PATH() + sl + 'vaults' + sl + 'cluster' + sl + cluster
@@ -94,7 +95,7 @@ def data_preparation(cluster: str):
         ct = pd.concat([ct, common_table], axis=1)
         df = data.dropna()
         max_past = max([int(model.split('_')[3]) for model in models_names])
-        df_prices = df.copy().iloc[-(max_past + 130):]
+        df_prices = df.copy().iloc[-(max_past + extended_range):]
 
         if a.split('_')[-1] == 'T':
             targeted = True
@@ -109,17 +110,17 @@ def data_preparation(cluster: str):
         time_model_init = dt.datetime.now()
         try:
             model = load_model(absolute_path)
-            predictions = model.predict(testX[-126:], verbose=0)
+            predictions = model.predict(testX[-time_range:], verbose=0)
         except:
             model = load_model(absolute_path, custom_objects={'directional_loss': directional_loss})
-            predictions = model.predict(testX[-126:], verbose=0)
+            predictions = model.predict(testX[-time_range:], verbose=0)
         model_stop_watch += dt.datetime.now() - time_model_init
         if 'confidence_tail' in loaded_dict.keys():
             con_tail = float(loaded_dict['confidence_tail'])
         else:
             con_tail = 0.5
 
-        denormalised = _data_denormalisation(predictions.copy(), df_prices, f_d, testY[-126:], break_point=False,
+        denormalised = _data_denormalisation(predictions.copy(), df_prices, f_d, testY[-time_range:], break_point=False,
                                              is_targeted=targeted, confidence_lvl=con_tail)
         time_index = normalised_data.tail(len(denormalised)).index
         df_pred = pd.DataFrame(denormalised, index=time_index)
@@ -141,7 +142,7 @@ def data_preparation(cluster: str):
             else:
                 sd = sd + random_adding / 1000
             df_pred = constructed_df.loc[df_pred.index].values + (df_pred * sd)
-        pred_saver[a] = common_table.iloc[-126:], df_pred.iloc[-126:]
+        pred_saver[a] = common_table.iloc[-time_range:], df_pred.iloc[-time_range:]
         interval_lst.append(a.split('_')[5])
 
     t2 = dt.datetime.now()

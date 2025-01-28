@@ -7,6 +7,10 @@ DA_TABLE = 'da_history.db'
 DAILY_ETHEREUM_DATA_TABLE = 'daily_eth.db'
 DAILY_RIPPLE_DATA_TABLE = 'daily_xrp.db'
 DAILY_BITCOIN_DATA_TABLE = 'daily_btc.db'
+HOURLY_ORDERS_DATA_TABLE = 'hourly_orders.db'
+FUTURES_BALANCE_TABLE = 'futures_balance.db'
+COMMISSIONS_TABLE = 'commissions_table.db'
+TRADE_HISTORY_TABLE = 'trade_history_table.db'
 DAILY_CRYPTO_DATA_TABLE_LIST = [DAILY_ETHEREUM_DATA_TABLE, DAILY_RIPPLE_DATA_TABLE, DAILY_BITCOIN_DATA_TABLE]
 CRYPTO_TICKERS = ['ETH-USD', 'XRP-USD', 'BTC-USD']
 SHARE_DRIVE_DIR = "G:\My Drive\Plutus_reports"
@@ -80,6 +84,7 @@ class Favorite(Enum):
     sixth = 'Tan_Clown_fish'  # 10/01/24 1h price, rsi Tested not over-fitted model
     seventh = 'Teal_Quail'  # 21/01/23 1h 5 layers with low lr and good val loss (<loss)
 
+
 # class ModelBatches(Enum):
 #     _1d_10 = {
 #                     }
@@ -114,3 +119,9 @@ class Favorite(Enum):
 #     _1h_10 = {
 #                  }
 #     _15m_5 = {}
+
+BINANCE_API_KEY = 'W8FC25IB1oWBwG3XkbPoX1d3bR6lvlWow7rw2SxDXiGtXNFdHPMLIJKgsvYlptdg'
+BINANCE_SECRET_KEY = 'tqERk981j4MU71ZvcWWieBqBB9mDjrRkYNxQdmPaUjyWN7EFK5L1WG2MznI1ogjn'
+SUB_BINANCE_API_KEY = "3BUd6X48gNKRdBEWLuUl5Jo04p50WhWX4X4KIe803MRW6pXcXZLO8wv4sGdqJDcs"
+SUB_BINANCE_SECRET_API_KEY = "TTPyL5WWgmofbtZgo90ueS80AFTK4757R802HptftQzZf3zeXVjmBC6zyOIdQ0Rs"
+BINANCE_FOLDER_SCOPE = 'trading'
