@@ -196,7 +196,7 @@ class OperationalAnalysis:
         except ValueError as ve:
             print("Error:", ve)
 
-    def download_asset_technical_data(self, asset: str, interval: str) -> pd.DataFrame:
+    def download_asset_technical_data(self, asset: str, interval: str) -> [pd.DataFrame, pd.DataFrame]:
         """
         Downloads asset data from Binance and filters it between self.start and self.end times.
         Adjusts the timestamps from CET (Binance) to UKT and returns the filtered data.
@@ -224,7 +224,10 @@ class OperationalAnalysis:
         # Set 'time' as the DataFrame index
         df_filtered.set_index('Time', inplace=True)
 
-        return df_filtered
+        # Filter data between start and end times (CET)
+        df_previous = df[df['Time'] <= self.start].copy()
+        df_previous.set_index('Time', inplace=True)
+        return df_filtered, df_previous
 
 
 # Example Usage:

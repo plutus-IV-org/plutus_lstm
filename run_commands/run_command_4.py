@@ -7,4 +7,4 @@ sys.path.insert(0, os.getcwd())
 
 from app_service.app import generate_app
 
-generate_app("trading", time_range = 500)
+generate_app("trading")

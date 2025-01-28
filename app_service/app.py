@@ -482,7 +482,7 @@ def generate_app(cluster, time_range=126):
         ],
         prevent_initial_call=False)
     def update_statistic_graph(asset_name, anomalies_toggle, anomalies_window, rolling_period, zscore_lvl,
-                               all_averages_toggle, interval_dropdown, ):
+                               all_averages_toggle, interval_dropdown ):
 
         relevant_models = []
         partially_selected_dict = select_dictionaries_by_type(asset_predictions, all_averages_toggle)
@@ -509,7 +509,7 @@ def generate_app(cluster, time_range=126):
         for model in relevant_models:
             deviation_data, deviation_data_diff = auxiliary_dataframes(model, asset_prices, selected_dict,
                                                                        asset_name, anomalies_toggle, anomalies_window,
-                                                                       rolling_period, zscore_lvl, time_range)
+                                                                       rolling_period, zscore_lvl, time_range=time_range)
 
             df = directional_accuracy_history_load(DA_TABLE)
             selected_df = df[df['model_name'] == model]
