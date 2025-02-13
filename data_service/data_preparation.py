@@ -320,7 +320,7 @@ class DataPreparation:
                 'crypto_fear_and_greed_daily': crypto_fear_and_greed_daily,
                 'ranked_crypto_fear_and_greed_daily': ranked_crypto_fear_and_greed_daily,
                 'crypto_benchmark': lambda: crypto_benchmark()[['Close']].rename(columns={'Close': 'BTC-USD Close'}),
-                'btc_senti_daily': download_btc_senti,
+                #'btc_senti_daily': download_btc_senti,
             }
 
             # Iterate over the dictionary, try to call each function and store the result in df_dict
@@ -334,8 +334,7 @@ class DataPreparation:
                         df_dict[key] = function(df)
                     # print(f"Function {key} executed successfully.")
                 except Exception as e:
-                    pass
-                    # print(f"An error occurred in function {key}: {e}")
+                    print(f"An error occurred in function {key}: {e}")
 
             # If the asset is a cryptocurrency, merge additional data
             if self.asset[-4:] == '-USD':

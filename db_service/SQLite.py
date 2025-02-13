@@ -5,7 +5,7 @@ import pandas as pd
 import datetime as dt
 import json
 import glob
-from db_service.schemas.tables_schemas import DIRECTIONAL_ACCURACY_TABLE_SCHEMA
+from db_service.schemas.tables_schemas import *
 from Const import DA_TABLE
 
 # Getting tables directory

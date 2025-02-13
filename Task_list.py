@@ -16,6 +16,10 @@ Task list
 
 
 26.12.24
-1) Create a service to connect to Binance account.
+1) DONE. Create a service to connect to Binance account.
+
+
+13.02.2025
+1) DONE. Create a keltner channel strategy
 
 """

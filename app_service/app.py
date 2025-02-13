@@ -583,7 +583,7 @@ def generate_app(cluster, time_range=126):
     # Find a free port in the range 1024 to 65535
     free_port = find_free_port(1024, 65535)
 
-    playsound(sound_path)
+    #playsound(sound_path)
     t2 = dt.datetime.now()
     print(f'Whole process took... {t2 - t1}')
     app.run_server(debug=False, port=free_port)

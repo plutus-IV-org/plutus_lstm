@@ -1,0 +1,16 @@
+{
+  "assets": {
+    "AVAX-USD": {
+      "ema": 60,
+      "atr": 55,
+      "multiplier": 1,
+      "interval": "1h",
+      "start": "20230202 00",
+      "end": "20250202 00",
+      "return": 2.21,
+      "benchmark": 1.2,
+      "delay_percentage" : 0.0,
+      "interval_delay" : 1
+    }
+  }
+}

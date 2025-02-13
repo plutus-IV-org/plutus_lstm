@@ -267,10 +267,8 @@ def calculate_quantity(price: float, funds: float, leverage: int, percentage: fl
 
 
 def convert_ticker(ticker: str) -> str:
-    if ticker == 'XRP-USD':
-        return 'XRPUSDT'
-    else:
-        return ticker
+    ticker_split = ticker.split('-')[0]
+    return ticker_split + "USDT"
 
 
 def compute_sl_and_tp(price: float, direction: str, sl_coefficient: float = 0.02, tp_coefficient: float = 0.03) -> \
@@ -298,6 +296,9 @@ def compute_sl_and_tp(price: float, direction: str, sl_coefficient: float = 0.02
         sl = round((1 - sl_coefficient) * price, 2)
         tp = round((1 + tp_coefficient) * price, 2)
     elif direction == 'SELL':
+        sl = round((1 + sl_coefficient) * price, 2)
+        tp = round((1 - tp_coefficient) * price, 2)
+    elif direction == 'HOLD':
         sl = round((1 + sl_coefficient) * price, 2)
         tp = round((1 - tp_coefficient) * price, 2)
     else:
