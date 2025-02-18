@@ -22,4 +22,6 @@ Task list
 13.02.2025
 1) DONE. Create a keltner channel strategy
 
+18.02.2025
+1) DONE. Create multiply asset runner
 """

@@ -11,6 +11,7 @@ from Const import HOURLY_ORDERS_DATA_TABLE, FUTURES_BALANCE_TABLE, COMMISSIONS_T
 import sqlite3
 
 
+
 def get_current_hourly_time_row(df) -> dict:
     output = {}
     current_time = dt.datetime.now()
@@ -264,6 +265,26 @@ def calculate_quantity(price: float, funds: float, leverage: int, percentage: fl
     max_quantity = max(0, max_quantity - 1)
 
     return max_quantity
+
+
+def adjust_quantity(input_quantity, traded_assets_amount):
+    return max(1, math.floor(input_quantity / traded_assets_amount))
+
+
+def get_close_side(old_direction: int) -> str:
+    """
+    Returns the side (BUY/SELL) needed to close a position
+    when the existing direction is old_direction.
+    +1 means we are long => SELL to close
+    -1 means we are short => BUY to close
+    0 means no position => no close needed
+    """
+    if old_direction == 1:
+        return "SELL"
+    elif old_direction == -1:
+        return "BUY"
+    else:
+        return ""  # No position to close
 
 
 def convert_ticker(ticker: str) -> str:
