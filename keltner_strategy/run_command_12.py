@@ -79,6 +79,7 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
         # Set analysis range
         analysis.set_time_range_by_typing(formatted_look_back_hour, formatted_current_hour)
 
+        wait_time = time_till_next_hour()
         if wait_time < 3480:
             print('[INFO]The difference between current time and next trading hour is smaller than set time.')
             print(f"Sleeping for {wait_time / 60:.2f} minutes until the next hour...")
@@ -119,7 +120,7 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                 # Apply commissions to returns
                 commissions_df = apply_trading_commission(df_channeled, "taker")
                 df_channeled['Adjusted_Returns'] = commissions_df['Channel_Target'].values * (
-                    1 + df_channeled['Adjusted_Returns']
+                        1 + df_channeled['Adjusted_Returns']
                 )
                 df_channeled['Cumulative_Returns'] = df_channeled['Adjusted_Returns'].cumprod()
 
@@ -171,7 +172,7 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
         except Exception as e:
             print("[ERROR] Failed to check positions:", e)
             wait_time = time_till_next_hour()
-            print(f"Sleeping {wait_time/60:.2f} minutes until next hour...")
+            print(f"Sleeping {wait_time / 60:.2f} minutes until next hour...")
             time.sleep(wait_time)
             continue
 
@@ -299,7 +300,8 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                     old_size = current_positions.get(asset, {}).get('size', 0)
                     if old_size > 0:
                         closing_side = get_close_side(old_dir)
-                        print(f"[INFO] Flipping {asset} from {old_dir} => {new_dir}. Closing old with side={closing_side} size={old_size}")
+                        print(
+                            f"[INFO] Flipping {asset} from {old_dir} => {new_dir}. Closing old with side={closing_side} size={old_size}")
                         order_info_close = bt.create_market_order(
                             ticker=convert_ticker(asset),
                             side=closing_side,
@@ -345,7 +347,8 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                 current_size = positions_dict.get(asset, {}).get('size', 0)
                 if new_dir == old_dir and abs(current_size - quantity) > 1e-8:
                     # Reaffirm direction but adjust quantity
-                    print(f"[INFO] {asset}: Reaffirm direction {new_dir}, adjusting position from {current_size} => {quantity}")
+                    print(
+                        f"[INFO] {asset}: Reaffirm direction {new_dir}, adjusting position from {current_size} => {quantity}")
                     # Close old
                     if current_size > 0:
                         closing_side = get_close_side(old_dir)
@@ -427,7 +430,7 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
 
         # (3) Sleep until next hour
         wait_time = time_till_next_hour()
-        print(f"[INFO] Run completed. Sleeping {wait_time/60:.2f} minutes until next hour...\n")
+        print(f"[INFO] Run completed. Sleeping {wait_time / 60:.2f} minutes until next hour...\n")
         time.sleep(wait_time)
 
 
