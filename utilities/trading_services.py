@@ -11,7 +11,6 @@ from Const import HOURLY_ORDERS_DATA_TABLE, FUTURES_BALANCE_TABLE, COMMISSIONS_T
 import sqlite3
 
 
-
 def get_current_hourly_time_row(df) -> dict:
     output = {}
     current_time = dt.datetime.now()
@@ -290,6 +289,11 @@ def get_close_side(old_direction: int) -> str:
 def convert_ticker(ticker: str) -> str:
     ticker_split = ticker.split('-')[0]
     return ticker_split + "USDT"
+
+
+def inverse_convert_ticker(ticker: str) -> str:
+    ticker_split = ticker[:-4]
+    return ticker_split + "-USD"
 
 
 def compute_sl_and_tp(price: float, direction: str, sl_coefficient: float = 0.02, tp_coefficient: float = 0.03) -> \

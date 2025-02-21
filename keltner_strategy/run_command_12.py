@@ -1,3 +1,4 @@
+import math
 import os
 import sys
 import json
@@ -22,6 +23,7 @@ from utilities.trading_services import (
     compute_sl_and_tp,
     calculate_quantity,
     convert_ticker,
+    inverse_convert_ticker,
     adjust_quantity,
     add_future_balance_to_db,
     add_previous_trade_to_db,
@@ -64,7 +66,9 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
     # Keep track of last direction (+1=long, -1=short, 0=flat) for each asset
     last_directions = {asset: 0 for asset in assets_config}
 
+    x = 1
     while True:
+
         print("_" * 60)
         current_time = dt.datetime.now()
         print(f"[INFO] New run started at {current_time}")
@@ -199,16 +203,16 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
         if num_nonzero == 0:
             # No assets signaled => close all positions
             print("[INFO] All signals are 0. Closing all open positions.")
-            for asset, pos_info in current_positions.items():
-                old_dir = last_directions.get(asset, 0)
-                current_size = pos_info.get('size', 0)
+            for asset, pos_info in positions_dict.items():
+                old_dir = last_directions.get(inverse_convert_ticker(asset), 0)
+                current_size = abs(float(pos_info.get('positionAmt', 0)))
                 if current_size > 0 and old_dir != 0:
                     # Figure out the side needed to close
                     closing_side = get_close_side(old_dir)
                     if closing_side:
                         print(f"[INFO] Closing {asset} with side={closing_side}, size={current_size}")
                         order_info = bt.create_market_order(
-                            ticker=convert_ticker(asset),
+                            symbol=asset,
                             side=closing_side,
                             quantity=current_size,
                             leverage=leverage
@@ -245,8 +249,24 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
             portion_each = capital_percentage / num_nonzero
             print(f"[INFO] {num_nonzero} assets have nonzero signals, portion_each={portion_each:.2f}")
 
+            def sort_assets_for_rebalancing(item):
+                """
+                item is (asset, sig_info).
+                We'll return a number (0 or 1) such that
+                any item with old_dir != 0 is sorted first (0),
+                and old_dir == 0 is sorted last (1).
+                """
+                asset, sig_info = item
+                old_dir = last_directions.get(asset, 0)
+
+                # If old_dir != 0 => we want it first => return 0
+                # If old_dir == 0 => we want it last => return 1
+                return 0 if old_dir != 0 else 1
+
+            assets_sorted = sorted(asset_signals.items(), key=sort_assets_for_rebalancing)
+
             # Loop through each asset to handle rebalancing
-            for asset, sig_info in asset_signals.items():
+            for asset, sig_info in assets_sorted:
                 new_dir = sig_info['channel_target']
                 current_price = sig_info['close_price']
                 old_dir = last_directions.get(asset, 0)
@@ -254,27 +274,27 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                 # If new_dir == 0 => close position if open
                 if new_dir == 0:
                     # Close if there's a size
-                    pos_size = current_positions.get(asset, {}).get('size', 0)
-                    if pos_size > 0 and old_dir != 0:
+                    pos_size = float(positions_dict.get(convert_ticker(asset), {}).get('positionAmt', 0))
+                    if abs(pos_size) > 0 and old_dir != 0:
                         closing_side = get_close_side(old_dir)
                         if closing_side:
                             print(f"[INFO] Closing {asset}, side={closing_side}, size={pos_size}")
                             order_info = bt.create_market_order(
-                                ticker=convert_ticker(asset),
+                                symbol=convert_ticker(asset),
                                 side=closing_side,
-                                quantity=pos_size,
+                                quantity=abs(pos_size),
                                 leverage=leverage
                             )
                             # DB logs
                             trading_dict = {
-                                'Asset': asset,
+                                'Asset': convert_ticker(asset),
                                 'Diff': 1,
                                 'Target': 0,
                                 'Verbal': closing_side,
                                 'Time': dt.datetime.now(),
                                 'As of': current_hour,
                                 'Current price': current_price,
-                                'Quantity': pos_size,
+                                'Quantity': abs(pos_size),
                                 'Leverage': leverage,
                                 'TP': 0,
                                 'SL': 0,
@@ -284,33 +304,35 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                             add_hourly_order_to_db(trading_dict, testing)
 
                             # Commissions, trade diffs
-                            com = bt.get_commissions_for_closed_position(asset)
-                            add_commissions_into_db(com, asset)
-                            latest_trade_info = bt.get_diff_between_last_two_trades(asset, leverage)
+                            com = bt.get_commissions_for_closed_position(convert_ticker(asset))
+                            add_commissions_into_db(com, convert_ticker(asset))
+                            latest_trade_info = bt.get_diff_between_last_two_trades(convert_ticker(asset), leverage)
                             add_previous_trade_to_db(latest_trade_info, testing)
 
                     # Mark direction as 0
                     last_directions[asset] = 0
                     continue
 
+                raw_quantity = calculate_quantity(current_price, total_balance, leverage, 1)
+                quantity = adjust_quantity(raw_quantity, len(nonzero_assets))
                 # If we get here, new_dir != 0 => we want a position
                 # 1) Possibly close the old position if direction changed
                 if old_dir != 0 and old_dir != new_dir:
                     # Close old
-                    old_size = current_positions.get(asset, {}).get('size', 0)
-                    if old_size > 0:
+                    old_size = float(positions_dict.get(convert_ticker(asset), {}).get('positionAmt', 0))
+                    if abs(old_size) > 0:
                         closing_side = get_close_side(old_dir)
                         print(
                             f"[INFO] Flipping {asset} from {old_dir} => {new_dir}. Closing old with side={closing_side} size={old_size}")
                         order_info_close = bt.create_market_order(
-                            ticker=convert_ticker(asset),
+                            symbol=convert_ticker(asset),
                             side=closing_side,
-                            quantity=old_size,
+                            quantity=abs(old_size) + quantity,
                             leverage=leverage
                         )
                         # DB logs for close
                         trading_dict_close = {
-                            'Asset': asset,
+                            'Asset': convert_ticker(asset),
                             'Diff': 1,
                             'Target': 0,
                             'Verbal': closing_side,
@@ -327,11 +349,13 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                         add_hourly_order_to_db(trading_dict_close, testing)
 
                         # Additional logs
-                        com_close = bt.get_commissions_for_closed_position(asset)
-                        add_commissions_into_db(com_close, asset)
-                        last_trade_close = bt.get_diff_between_last_two_trades(asset, leverage)
+                        com_close = bt.get_commissions_for_closed_position(convert_ticker(asset))
+                        add_commissions_into_db(com_close, convert_ticker(asset))
+                        last_trade_close = bt.get_diff_between_last_two_trades(convert_ticker(asset), leverage)
                         add_previous_trade_to_db(last_trade_close, testing)
 
+                        last_directions[asset] = new_dir
+                        continue
                 # 2) Open (or adjust) the new position if needed
                 # Decide quantity based on portion of capital
                 if current_price == 0:
@@ -340,59 +364,78 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                     last_directions[asset] = 0
                     continue
 
-                raw_quantity = calculate_quantity(current_price, total_balance, leverage, portion_each)
-                quantity = adjust_quantity(raw_quantity, len(nonzero_assets))  # or adapt as needed
-
                 # Check current size
-                current_size = positions_dict.get(asset, {}).get('size', 0)
-                if new_dir == old_dir and abs(current_size - quantity) > 1e-8:
+                current_size = float(positions_dict.get(convert_ticker(asset), {}).get('positionAmt', 0))
+                if new_dir == old_dir and abs(abs(current_size) - quantity) > 1e-8:
                     # Reaffirm direction but adjust quantity
                     print(
                         f"[INFO] {asset}: Reaffirm direction {new_dir}, adjusting position from {current_size} => {quantity}")
-                    # Close old
-                    if current_size > 0:
+                    # Reduce the old
+                    if abs(current_size) > quantity:
                         closing_side = get_close_side(old_dir)
-                        if closing_side:
-                            bt.create_market_order(
-                                ticker=convert_ticker(asset),
-                                side=closing_side,
-                                quantity=current_size,
-                                leverage=leverage
-                            )
-                            # Log closing if needed, etc.
-                            com_close = bt.get_commissions_for_closed_position(asset)
-                            add_commissions_into_db(com_close, asset)
-                            last_trade_close = bt.get_diff_between_last_two_trades(asset, leverage)
-                            add_previous_trade_to_db(last_trade_close, testing)
+                        order_info = bt.create_market_order(
+                            symbol=convert_ticker(asset),
+                            side=closing_side,
+                            quantity=quantity,
+                            leverage=leverage
+                        )
 
-                    # Now open new with correct size
-                    opening_side = "BUY" if new_dir == 1 else "SELL"
-                    sl, tp = compute_sl_and_tp(current_price, opening_side, sl_coeff, tp_coeff)
-                    order_info = bt.create_market_order(
-                        convert_ticker(asset),
-                        opening_side,
-                        quantity,
-                        leverage=leverage,
-                        take_profit=tp,
-                        stop_loss=sl
-                    )
-                    # DB log
-                    trading_dict = {
-                        'Asset': asset,
-                        'Diff': 1,
-                        'Target': new_dir,
-                        'Verbal': opening_side,
-                        'Time': dt.datetime.now(),
-                        'As of': current_hour,
-                        'Current price': current_price,
-                        'Quantity': quantity,
-                        'Leverage': leverage,
-                        'TP': tp,
-                        'SL': sl,
-                        'Executed': True if order_info else False,
-                        'OrderId': order_info.get('orderId', 0) if order_info else 0
-                    }
-                    add_hourly_order_to_db(trading_dict, testing)
+                        # Log closing if needed, etc.
+                        com_close = bt.get_commissions_for_closed_position(asset)
+                        add_commissions_into_db(com_close, asset)
+                        last_trade_close = bt.get_diff_between_last_two_trades(asset, leverage)
+                        add_previous_trade_to_db(last_trade_close, testing)
+
+                        # DB log
+                        trading_dict = {
+                            'Asset': convert_ticker(asset),
+                            'Diff': 1,
+                            'Target': new_dir,
+                            'Verbal': closing_side,
+                            'Time': dt.datetime.now(),
+                            'As of': current_hour,
+                            'Current price': current_price,
+                            'Quantity': quantity,
+                            'Leverage': leverage,
+                            'TP': 0,
+                            'SL': 0,
+                            'Executed': True if order_info else False,
+                            'OrderId': order_info.get('orderId', 0) if order_info else 0
+                        }
+                        add_hourly_order_to_db(trading_dict, testing)
+
+                    else:
+                        closing_side = 'BUY' if old_dir == 1 else 'SELL'
+                        order_info = bt.create_market_order(
+                            symbol=convert_ticker(asset),
+                            side=closing_side,
+                            quantity=abs(current_size) - 1,
+                            leverage=leverage
+                        )
+
+                        # Log closing if needed, etc.
+                        com_close = bt.get_commissions_for_closed_position(convert_ticker(asset))
+                        add_commissions_into_db(com_close, convert_ticker(asset))
+                        last_trade_close = bt.get_diff_between_last_two_trades(convert_ticker(asset), leverage)
+                        add_previous_trade_to_db(last_trade_close, testing)
+
+                        # DB log
+                        trading_dict = {
+                            'Asset': convert_ticker(asset),
+                            'Diff': 1,
+                            'Target': new_dir,
+                            'Verbal': closing_side,
+                            'Time': dt.datetime.now(),
+                            'As of': current_hour,
+                            'Current price': current_price,
+                            'Quantity': quantity,
+                            'Leverage': leverage,
+                            'TP': 0,
+                            'SL': 0,
+                            'Executed': True if order_info else False,
+                            'OrderId': order_info.get('orderId', 0) if order_info else 0
+                        }
+                        add_hourly_order_to_db(trading_dict, testing)
 
                 elif new_dir != old_dir:
                     # We either just closed old_dir above or we had none
@@ -404,12 +447,12 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
                         opening_side,
                         quantity,
                         leverage=leverage,
-                        take_profit=tp,
-                        stop_loss=sl
+                        # take_profit=tp,
+                        # stop_loss=sl
                     )
                     # DB log
                     trading_dict = {
-                        'Asset': asset,
+                        'Asset': convert_ticker(asset),
                         'Diff': 1,
                         'Target': new_dir,
                         'Verbal': opening_side,
@@ -435,5 +478,4 @@ def run(sl_coeff, tp_coeff, leverage, capital_percentage, testing, look_back=42)
 
 
 if __name__ == "__main__":
-    # Example usage
     run(sl_coeff=0.7, tp_coeff=0.7, leverage=2, capital_percentage=1, testing=True, look_back=42)
